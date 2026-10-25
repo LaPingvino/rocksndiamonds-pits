@@ -385,6 +385,8 @@ int getLevelFromScreenX(int x)
     return getLevelFromScreenX_SP(x);
   if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
     return getLevelFromScreenX_MM(x);
+  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    return getLevelFromScreenX_PITS(x);
   else
     return getLevelFromScreenX_RND(x);
 }
@@ -397,6 +399,8 @@ int getLevelFromScreenY(int y)
     return getLevelFromScreenY_SP(y);
   if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
     return getLevelFromScreenY_MM(y);
+  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    return getLevelFromScreenY_PITS(y);
   else
     return getLevelFromScreenY_RND(y);
 }
@@ -509,6 +513,8 @@ void RedrawPlayfield(void)
     RedrawPlayfield_SP(TRUE);
   else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
     RedrawPlayfield_MM();
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    RedrawPlayfield_PITS(TRUE);
   else if (level.game_engine_type == GAME_ENGINE_TYPE_RND)
     RedrawPlayfield_RND();
 
@@ -684,6 +690,8 @@ void BlitScreenToBitmap(Bitmap *target_bitmap)
     BlitScreenToBitmap_SP(target_bitmap);
   else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
     BlitScreenToBitmap_MM(target_bitmap);
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    BlitScreenToBitmap_PITS(target_bitmap);
   else if (level.game_engine_type == GAME_ENGINE_TYPE_RND)
     BlitScreenToBitmap_RND(target_bitmap);
 
@@ -11101,6 +11109,8 @@ unsigned int InitRND(int seed)
     return InitEngineRandom_SP(seed);
   else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
     return InitEngineRandom_MM(seed);
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    return InitEngineRandom_PITS(seed);
   else
     return InitEngineRandom_RND(seed);
 }

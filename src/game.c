@@ -2415,6 +2415,8 @@ int getPlayerInventorySize(int player_nr)
     return game_em.ply[player_nr]->dynamite;
   else if (level.game_engine_type == GAME_ENGINE_TYPE_SP)
     return game_sp.red_disk_count;
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    return (player_nr == 0 ? game_pits.gems : 0);
   else
     return stored_player[player_nr].inventory_size;
 }
@@ -2500,6 +2502,7 @@ static void UpdateGameControlValues(void)
 	      level.game_engine_type == GAME_ENGINE_TYPE_EM	? game_em.lev->time :
 	      level.game_engine_type == GAME_ENGINE_TYPE_SP	? game_sp.time_played :
 	      level.game_engine_type == GAME_ENGINE_TYPE_MM	? game_mm.energy_left :
+	      level.game_engine_type == GAME_ENGINE_TYPE_PITS	? game_pits.moves :
 	      game.no_level_time_limit				? TimePlayed :
 	      TimeLeft);
 
@@ -2514,6 +2517,7 @@ static void UpdateGameControlValues(void)
 	      level.game_engine_type == GAME_ENGINE_TYPE_EM	? game_em.lev->gems_needed :
 	      level.game_engine_type == GAME_ENGINE_TYPE_SP	? game_sp.infotrons_still_needed :
 	      level.game_engine_type == GAME_ENGINE_TYPE_MM	? game_mm.kettles_still_needed :
+	      level.game_engine_type == GAME_ENGINE_TYPE_PITS	? game_pits.targets_still_needed :
 	      game.gems_still_needed);
 
   int gems_needed = (level.game_engine_type == GAME_ENGINE_TYPE_BD ?
@@ -2580,6 +2584,11 @@ static void UpdateGameControlValues(void)
 	if (level.game_engine_type == GAME_ENGINE_TYPE_EM)
 	{
 	  if (game_em.ply[i]->keys & (1 << k))
+	    game_panel_controls[GAME_PANEL_KEY_1 + k].value = get_key_element_from_nr(k);
+	}
+	else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+	{
+	  if (i == 0 && k < 3 && game_pits.key[k])
 	    game_panel_controls[GAME_PANEL_KEY_1 + k].value = get_key_element_from_nr(k);
 	}
 	else if (stored_player[i].key[k])
@@ -4045,6 +4054,10 @@ static void InitGameEngine(void)
   game.use_key_actions = TRUE;
   game.use_mouse_actions = FALSE;
 
+  // The Puzzle Pits is played with keys or the mouse
+  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    game.use_mouse_actions = TRUE;
+
   // when using Mirror Magic game engine, handle mouse events only
   if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
   {
@@ -5127,6 +5140,10 @@ void InitGame(void)
   else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
   {
     InitGameEngine_MM();
+  }
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+  {
+    InitGameEngine_PITS();
   }
   else
   {
@@ -12539,6 +12556,18 @@ static void CheckLevelSolved(void)
     if (game_sp.game_over)				// game lost
       game.all_players_gone = TRUE;
   }
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+  {
+    if (game_pits.level_solved &&
+	!game_pits.game_over)				// game won
+    {
+      LevelSolved();
+
+      game_pits.game_over = TRUE;
+
+      game.all_players_gone = TRUE;
+    }
+  }
   else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
   {
     if (game_mm.level_solved &&
@@ -13087,6 +13116,10 @@ static void GameActionsExt(void)
   {
     GameActions_MM_Main();
   }
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+  {
+    GameActions_PITS_Main();
+  }
   else
   {
     GameActions_RND_Main();
@@ -13181,6 +13214,36 @@ void GameActions_SP_Main(void)
 
     stored_player[i].force_dropping = FALSE;
   }
+}
+
+// a page of a Puzzle Pits script's text (PRINT), in an envelope: on a tape
+// played back it closes by itself
+void ShowText_PITS(char *text)
+{
+  struct EnvelopeInfo *envelope = &level.envelope[0];
+  struct EnvelopeInfo level_envelope = *envelope;
+
+  envelope->xsize = MAX_ENVELOPE_XSIZE;
+  envelope->ysize = MAX_ENVELOPE_YSIZE;
+  envelope->autowrap = FALSE;
+  envelope->centered = FALSE;
+  strncpy(envelope->text, text, MAX_ENVELOPE_TEXT_LEN);
+  envelope->text[MAX_ENVELOPE_TEXT_LEN] = '\0';
+
+  ShowEnvelope(0);
+
+  *envelope = level_envelope;
+}
+
+void GameActions_PITS_Main(void)
+{
+  byte effective_action[MAX_PLAYERS];
+  int i;
+
+  for (i = 0; i < MAX_PLAYERS; i++)
+    effective_action[i] = stored_player[i].effective_action;
+
+  GameActions_PITS(effective_action, local_player->effective_mouse_action);
 }
 
 void GameActions_MM_Main(void)
@@ -17481,6 +17544,8 @@ boolean checkGameFailed(void)
     return (game_sp.game_over && !game_sp.level_solved);
   else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
     return (game_mm.game_over && !game_mm.level_solved);
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    return (game_pits.game_over && !game_pits.level_solved);
   else				// GAME_ENGINE_TYPE_RND
     return (game.GameOver && !game.LevelSolved);
 }

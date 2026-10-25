@@ -266,7 +266,10 @@ GAME_SP = $(GAME_SP_DIR)/game_sp.a
 GAME_MM_DIR = game_mm
 GAME_MM = $(GAME_MM_DIR)/game_mm.a
 
-RNDLIBS = $(GAME_BD) $(GAME_EM) $(GAME_SP) $(GAME_MM) $(LIBGAME)
+GAME_PITS_DIR = game_pits
+GAME_PITS = $(GAME_PITS_DIR)/game_pits.a
+
+RNDLIBS = $(GAME_BD) $(GAME_EM) $(GAME_SP) $(GAME_MM) $(GAME_PITS) $(LIBGAME)
 AUTOCONF = conf_gfx.h conf_snd.h conf_mus.h
 
 ARCH_DIRS = arm64 x64
@@ -286,7 +289,7 @@ GRAPHICS_DIR = ../graphics
 # build targets
 # -----------------------------------------------------------------------------
 
-all: $(AUTOCONF) libgame_dir game_bd_dir game_em_dir game_sp_dir game_mm_dir $(PROGNAME) graphics_dir
+all: $(AUTOCONF) libgame_dir game_bd_dir game_em_dir game_sp_dir game_mm_dir game_pits_dir $(PROGNAME) graphics_dir
 
 $(PROGNAME): $(RNDLIBS) $(TIMESTAMP_FILE) $(COMMIT_HASH_FILE) $(OBJS) $(ICON)
 	$(CC) $(OBJS) $(ICON) $(RNDLIBS) $(LDFLAGS) -o $(PROGNAME)
@@ -321,6 +324,11 @@ game_sp_dir:
 	@$(MAKE) -C $(GAME_SP_DIR)
 $(GAME_SP):
 	@$(MAKE) -C $(GAME_SP_DIR)
+
+game_pits_dir:
+	@$(MAKE) -C $(GAME_PITS_DIR)
+$(GAME_PITS):
+	@$(MAKE) -C $(GAME_PITS_DIR)
 
 game_mm_dir:
 	@$(MAKE) -C $(GAME_MM_DIR)

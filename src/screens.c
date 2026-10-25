@@ -634,6 +634,7 @@ static struct ValueTextInfo game_engine_types_list[] =
   { GAME_ENGINE_TYPE_EM,		"Emerald Mine"			},
   { GAME_ENGINE_TYPE_SP,		"Supaplex"			},
   { GAME_ENGINE_TYPE_MM,		"Mirror Magic"			},
+  { GAME_ENGINE_TYPE_PITS,	"The Puzzle Pits"		},
 
   { -1,					NULL				}
 };

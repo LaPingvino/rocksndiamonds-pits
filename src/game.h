@@ -510,6 +510,8 @@ void GameActions(void);
 void GameActions_BD_Main(void);
 void GameActions_EM_Main(void);
 void GameActions_SP_Main(void);
+void GameActions_PITS_Main(void);
+void ShowText_PITS(char *);
 void GameActions_MM_Main(void);
 void GameActions_RND_Main(void);
 void GameActions_RND(void);
