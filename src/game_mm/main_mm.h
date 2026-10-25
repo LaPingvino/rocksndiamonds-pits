@@ -1,0 +1,78 @@
+// ============================================================================
+// Rocks'n'Diamonds - McDuffin Strikes Back!
+// ----------------------------------------------------------------------------
+// (c) 1995-2024 by Artsoft Entertainment
+//     		    Holger Schemel
+//		    info@artsoft.org
+//		    https://www.artsoft.org/
+// ----------------------------------------------------------------------------
+// main_mm.h
+// ============================================================================
+
+#ifndef MAIN_MM_H
+#define MAIN_MM_H
+
+// ============================================================================
+// external functions and definitions imported from main program to game_mm
+// ============================================================================
+
+#include "import_mm.h"
+
+
+// ============================================================================
+// functions and definitions that are exported from game_mm to main program
+// ============================================================================
+
+#include "export_mm.h"
+
+
+// ============================================================================
+// internal functions and definitions that are not exported to main program
+// ============================================================================
+
+
+// ----------------------------------------------------------------------------
+// constant definitions
+// ----------------------------------------------------------------------------
+
+// screen sizes and positions for MM engine
+
+extern int			TILESIZE_VAR;
+
+#define TILESIZE		32
+#define TILEX			TILESIZE
+#define TILEY			TILESIZE
+#define TILEX_VAR		TILESIZE_VAR
+#define TILEY_VAR		TILESIZE_VAR
+
+#define MINI_TILESIZE		(TILESIZE / 2)
+#define MINI_TILEX		(TILEX / 2)
+#define MINI_TILEY		(TILEY / 2)
+
+extern int			WIN_XSIZE, WIN_YSIZE;
+extern int			SCR_FIELDX, SCR_FIELDY;
+
+// often used screen positions
+
+extern int			SX, SY;
+extern int			SXSIZE, SYSIZE;
+extern int			REAL_SX, REAL_SY;
+extern int			FULL_SXSIZE, FULL_SYSIZE;
+
+
+// ----------------------------------------------------------------------------
+// data structure definitions
+// ----------------------------------------------------------------------------
+
+// ----------------------------------------------------------------------------
+// exported variables
+// ----------------------------------------------------------------------------
+
+extern struct LevelInfo_MM native_mm_level;
+
+
+// ----------------------------------------------------------------------------
+// exported functions
+// ----------------------------------------------------------------------------
+
+#endif	// MAIN_MM_H

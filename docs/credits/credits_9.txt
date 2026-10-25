@@ -1,0 +1,36 @@
+# .font: font.text_2
+Thanks to
+
+# .font: font.text_3
+Thomas Andrae
+
+# .font: font.text_2
+and
+
+# .font: font.text_3
+Karl Hörnell
+
+# .font: font.text_2
+for additional toon animations
+
+
+
+# .font: font.text_2
+Thanks to
+
+# .font: font.text_3
+The Onyx Guy
+
+# .font: font.text_2
+for improved game graphics
+
+
+
+# .font: font.text_2
+Thanks to
+
+# .font: font.text_3
+Majid Katzer
+
+# .font: font.text_2
+for additional sounds and music
