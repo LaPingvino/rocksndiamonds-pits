@@ -524,6 +524,22 @@ static void WalkStep(void)
     pits.walking = FALSE;
 }
 
+// a gem or a key, used with snap or drop and a direction
+static void UseGemOrKey(int action)
+{
+  static int gems[4] = { PITS_GREEN, PITS_BLUE, PITS_YELLOW, PITS_RED };
+  static int keys[4] = { PITS_GREEN, PITS_BLUE, -1,          PITS_RED };
+  int dir = getDirFromAction(action);
+
+  if (dir == PITS_NO_DIR)
+    return;
+
+  if (action & KEY_BUTTON_SNAP)
+    UseGem_PITS(gems[dir]);
+  else if ((action & KEY_BUTTON_DROP) && keys[dir] != -1)
+    UseKey_PITS(keys[dir]);
+}
+
 static void HandleChange(void)
 {
   if (pits.tick - pits.last_turn_tick < PITS_TURN_TICKS)
@@ -590,18 +606,10 @@ static void HandleInput(int action, struct MouseActionInfo mouse)
   // a gem (snap) or a key (drop) with a direction
   if ((snap || drop) && dir != PITS_NO_DIR)
   {
-    static int gems[4] = { PITS_GREEN, PITS_BLUE, PITS_YELLOW, PITS_RED };
-    static int keys[4] = { PITS_GREEN, PITS_BLUE, -1,          PITS_RED };
-
     pits.walking = FALSE;
 
     if (new_action)
-    {
-      if (snap)
-	UseGem_PITS(gems[dir]);
-      else if (keys[dir] != -1)
-	UseKey_PITS(keys[dir]);
-    }
+      UseGemOrKey(action);
 
     return;
   }
@@ -613,6 +621,9 @@ static void HandleInput(int action, struct MouseActionInfo mouse)
     if (can_turn)
     {
       pits.last_turn_tick = pits.tick;
+
+      // a key held into a switch or sign works on it again every turn
+      pits.bump_ready = TRUE;
 
       TryStep_PITS(dir);
     }
@@ -707,9 +718,27 @@ void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
     }
 
     if (pits.change_dir != 0)
+    {
+      // a gem or key pressed while the change is shown acts after it
+      if (action[0] != pits.last_action &&
+	  (action[0] & (KEY_BUTTON_SNAP | KEY_BUTTON_DROP)) &&
+	  getDirFromAction(action[0]) != PITS_NO_DIR)
+	pits.pending_use = action[0];
+
       HandleChange();
+
+      if (pits.change_dir == 0 && pits.pending_use != 0)
+      {
+	int pending_use = pits.pending_use;
+
+	pits.pending_use = 0;
+	UseGemOrKey(pending_use);
+      }
+    }
     else
+    {
       HandleInput(action[0], mouse);
+    }
   }
 
   pits.last_action = action[0];

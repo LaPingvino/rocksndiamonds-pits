@@ -226,6 +226,7 @@ struct PitsInfo
   int change_dir;			// +1 to a ghost, -1 back, 0 none
   int change_stage;
   int change_turns;			// quarter turns to make first
+  int pending_use;			// a gem or key pressed meanwhile
 
   // the pictures
   int walk_step;
