@@ -192,6 +192,7 @@ struct PitsInfo
   int arrows_y[PITS_SIZE * PITS_SIZE];
   boolean in_arrows[PITS_SIZE][PITS_SIZE];
   int num_arrows;
+  boolean arrived[PITS_SIZE][PITS_SIZE];	// objects moved here this turn
 
   boolean won;
 

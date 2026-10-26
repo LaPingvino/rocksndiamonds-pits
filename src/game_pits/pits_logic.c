@@ -152,6 +152,15 @@ static void AddArrow(int x, int y)
   pits.in_arrows[x][y] = TRUE;
 }
 
+static void ClearArrived(void)
+{
+  int x, y;
+
+  for (x = 0; x < PITS_SIZE; x++)
+    for (y = 0; y < PITS_SIZE; y++)
+      pits.arrived[x][y] = FALSE;
+}
+
 // the arrows and glass for the next turn: all of them, in reading order
 static void FindArrows(void)
 {
@@ -316,6 +325,9 @@ static void MoveObject(int x1, int y1, int x2, int y2, int dir)
 
   pits.last_pushed[x2][y2] = dir;
   pits.last_pushed[x1][y1] = PITS_NO_DIR;
+
+  // it takes no part in this turn's arrows and glass
+  pits.arrived[x2][y2] = TRUE;
 }
 
 // a square set by a script: its tile rules, and no last pushed
@@ -443,6 +455,7 @@ void InitLevel_PITS(void)
   pits.input_value = 0;
 
   FindArrows();
+  ClearArrived();
 
   pits.won = FALSE;
 
@@ -527,12 +540,7 @@ void AnimStep_PITS(void)
 
 static void MoveByArrowsAndGlass(void)
 {
-  static boolean arrived[PITS_SIZE][PITS_SIZE];
   int i, x, y;
-
-  for (x = 0; x < PITS_SIZE; x++)
-    for (y = 0; y < PITS_SIZE; y++)
-      arrived[x][y] = FALSE;
 
   // the list is that of the last turn's end, and script-made arrows
   for (i = 0; i < pits.num_arrows; i++)
@@ -545,7 +553,7 @@ static void MoveByArrowsAndGlass(void)
     under = pits.under[x][y];
     on_glass = (under == PITS_U_GLASS);
 
-    if (pits.over[x][y] < PITS_O_BARREL || arrived[x][y])
+    if (pits.over[x][y] < PITS_O_BARREL || pits.arrived[x][y])
       continue;
 
     if (PITS_IS_ARROW(under))
@@ -571,8 +579,6 @@ static void MoveByArrowsAndGlass(void)
 	pits.under[nx][ny] != PITS_U_GRASS)
     {
       MoveObject(x, y, nx, ny, dir);
-
-      arrived[nx][ny] = TRUE;
 
       PlaySound_PITS(on_glass ? PITS_SND_GLASS : PITS_SND_MAGIC);
     }
@@ -675,6 +681,7 @@ void TurnChecks_PITS(void)
     RunScript(pits.script_master, FALSE, 0, 0);
 
   FindArrows();
+  ClearArrived();
 
   CheckWin_PITS();
 }
@@ -707,6 +714,7 @@ static void GemsActOnSquareLeft(int x, int y, int dir)
       // not a way that glass knows: a pulled box doesn't slide
       pits.last_pushed[x][y] = 4 + dir;
       pits.last_pushed[bx][by] = PITS_NO_DIR;
+      pits.arrived[x][y] = TRUE;
 
       ApplyTileRules(bx, by);
       ApplyTileRules(x, y);
@@ -1008,6 +1016,7 @@ void FinishGhost_PITS(void)
   {
     pits.over[pits.green_x][pits.green_y] = over;
     pits.over[x][y] = PITS_O_NOTHING;
+    pits.arrived[pits.green_x][pits.green_y] = TRUE;
 
     ApplyTileRules(x, y);
     ApplyTileRules(pits.green_x, pits.green_y);
