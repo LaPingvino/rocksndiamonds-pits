@@ -12,7 +12,9 @@
 
 #define PITS_MAGIC			0x0895
 
-#define TEXT_COLUMNS			30	// R'n'D's envelope: 30 by 20
+// R'n'D's envelope is 30 by 20, but a line of 30 there wraps by itself, and
+// its end of line then gives an empty line: a line here is one less
+#define TEXT_COLUMNS			29
 #define TEXT_LINES			20
 
 struct GameInfo_PITS game_pits;
