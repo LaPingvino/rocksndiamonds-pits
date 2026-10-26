@@ -152,12 +152,26 @@ static void AddArrow(int x, int y)
   pits.in_arrows[x][y] = TRUE;
 }
 
+// the arrows and glass for the next turn: all of them, in reading order
+static void FindArrows(void)
+{
+  int x, y;
+
+  pits.num_arrows = 0;
+
+  for (x = 0; x < PITS_SIZE; x++)
+    for (y = 0; y < PITS_SIZE; y++)
+      pits.in_arrows[x][y] = FALSE;
+
+  for (y = PITS_MIN; y <= PITS_MAX; y++)
+    for (x = PITS_MIN; x <= PITS_MAX; x++)
+      if (PITS_IS_ARROW(pits.under[x][y]) || pits.under[x][y] == PITS_U_GLASS)
+	AddArrow(x, y);
+}
+
 static void SetUnder(int x, int y, int tile)
 {
   pits.under[x][y] = tile;
-
-  if (PITS_IS_ARROW(tile) || tile == PITS_U_GLASS)
-    AddArrow(x, y);
 }
 
 static void PlaySound_PITS(int sound)
@@ -307,7 +321,8 @@ static void MoveObject(int x1, int y1, int x2, int y2, int dir)
 // a square set by a script: its tile rules, and no last pushed
 static void ChangedByScript(int x, int y)
 {
-  if (PITS_IS_ARROW(pits.under[x][y]) || pits.under[x][y] == PITS_U_GLASS)
+  // an arrow made by a script takes part in this turn already
+  if (PITS_IS_ARROW(pits.under[x][y]))
     AddArrow(x, y);
 
   ApplyTileRules(x, y);
@@ -404,7 +419,7 @@ void InitLevel_PITS(void)
 
   pits.lastx = pits.px;
   pits.lasty = pits.py;
-  pits.facing = PITS_SOUTH * 4;
+  pits.facing = PITS_NORTH * 4;
 
   for (i = 0; i <= 100; i++)
     pits.walkable[i] = (i >= PITS_U_FLOOR && i <= PITS_U_GRASS);
@@ -427,12 +442,7 @@ void InitLevel_PITS(void)
   pits.input[0] = '\0';
   pits.input_value = 0;
 
-  pits.num_arrows = 0;
-
-  for (y = PITS_MIN; y <= PITS_MAX; y++)
-    for (x = PITS_MIN; x <= PITS_MAX; x++)
-      if (PITS_IS_ARROW(pits.under[x][y]) || pits.under[x][y] == PITS_U_GLASS)
-	AddArrow(x, y);
+  FindArrows();
 
   pits.won = FALSE;
 
@@ -524,7 +534,7 @@ static void MoveByArrowsAndGlass(void)
     for (y = 0; y < PITS_SIZE; y++)
       arrived[x][y] = FALSE;
 
-  // the list can grow while it is gone through (scripts don't run here)
+  // the list is that of the last turn's end, and script-made arrows
   for (i = 0; i < pits.num_arrows; i++)
   {
     int under, dir, nx, ny;
@@ -663,6 +673,8 @@ void TurnChecks_PITS(void)
   // 7: the master script, switched off
   if (pits.script_master >= 0)
     RunScript(pits.script_master, FALSE, 0, 0);
+
+  FindArrows();
 
   CheckWin_PITS();
 }
@@ -1352,9 +1364,9 @@ static void Swap(int x1, int y1, int x2, int y2, boolean over)
     pits.under[x1][y1] = pits.under[x2][y2];
     pits.under[x2][y2] = tmp;
 
-    if (PITS_IS_ARROW(pits.under[x1][y1]) || pits.under[x1][y1] == PITS_U_GLASS)
+    if (PITS_IS_ARROW(pits.under[x1][y1]))
       AddArrow(x1, y1);
-    if (PITS_IS_ARROW(pits.under[x2][y2]) || pits.under[x2][y2] == PITS_U_GLASS)
+    if (PITS_IS_ARROW(pits.under[x2][y2]))
       AddArrow(x2, y2);
   }
 

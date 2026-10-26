@@ -535,8 +535,8 @@ static void HandleChange(void)
   {
     if (pits.change_turns > 0)
     {
-      // facing south, from north through west
-      pits.facing = (pits.facing == PITS_NORTH * 4 ? PITS_WEST * 4 :
+      // facing south, from north through east
+      pits.facing = (pits.facing == PITS_NORTH * 4 ? PITS_EAST * 4 :
 		     PITS_SOUTH * 4);
       pits.change_turns--;
     }
