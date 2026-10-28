@@ -53,6 +53,7 @@ static char *room_keys[PITS_ROOM_ROWS] =
 };
 
 static boolean quiet_text = FALSE;
+static boolean controls_shown = FALSE;	// once in a run of the program
 
 
 // ----------------------------------------------------------------------------
@@ -375,6 +376,79 @@ void ShowLevelText_PITS(char *text)
 }
 
 
+// the controls, before the first level of a run: each line of it wrapped,
+// with what goes on to the next line set in by a space
+static void AddWrapped(char *text, char *line)
+{
+  int column = 0;
+  char *p = line;
+
+  while (*p != '\0')
+  {
+    int len = 0;
+
+    while (p[len] != '\0' && p[len] != ' ')
+      len++;
+
+    if (column > 0 && column + 1 + len > TEXT_COLUMNS)
+    {
+      strcat(text, "\n ");
+      column = 1;
+    }
+    else if (column > 0)
+    {
+      strcat(text, " ");
+      column++;
+    }
+
+    strncat(text, p, len);
+    column += len;
+    p += len;
+
+    while (*p == ' ')
+      p++;
+  }
+
+  strcat(text, "\n");
+}
+
+static void ShowControls(void)
+{
+  char *snap_key = getKeyName_PITS(TRUE);
+  char *drop_key = getKeyName_PITS(FALSE);
+  char text[TEXT_LINES * (TEXT_COLUMNS + 2) + 1] = "Controls\n\n";
+  char line[TEXT_COLUMNS * 4];
+
+  if (controls_shown)
+    return;
+
+  controls_shown = TRUE;
+
+  AddWrapped(text, "Arrows: walk, and push.");
+
+  sprintf(line, "Snap%s%s%s alone: wait a turn.", (snap_key ? " (" : ""),
+	  (snap_key ? snap_key : ""), (snap_key ? ")" : ""));
+  AddWrapped(text, line);
+
+  AddWrapped(text, "Snap + Left/Up/Right/Down: use the red, green, blue, "
+	     "yellow gem (again: put it away).");
+
+  sprintf(line, "Drop%s%s%s + Left/Up/Right: use the red, green, blue key.",
+	  (drop_key ? " (" : ""), (drop_key ? drop_key : ""),
+	  (drop_key ? ")" : ""));
+  AddWrapped(text, line);
+
+  AddWrapped(text, "Or click the gems and keys on the left.");
+  AddWrapped(text, "Left mouse button: step towards a square. Right button: "
+	     "walk there.");
+
+  // no empty line at the end
+  text[strlen(text) - 1] = '\0';
+
+  ShowText_PITS(text);
+}
+
+
 // ----------------------------------------------------------------------------
 // the view: the pit around the player
 // ----------------------------------------------------------------------------
@@ -422,6 +496,12 @@ void SnapshotView_PITS(void)
   pits_view.anim_counter = pits.anim_counter;
   pits_view.sparkle = pits.sparkle;
   pits_view.show_all = pits.show_all;
+
+  for (x = 0; x < 4; x++)
+    pits_view.gems[x] = pits.gems[x];
+  for (x = 0; x < 3; x++)
+    pits_view.keys[x] = pits.keys[x];
+  pits_view.gem_in_use = pits.gem_in_use;
 
   if (IsGhost_PITS())
   {
@@ -985,6 +1065,9 @@ static void PlayFrame(int action, struct MouseActionInfo mouse)
   {
     pits.started = TRUE;
 
+    // not one of the level's pages: a frame played again doesn't count it
+    ShowControls();
+
     quiet_text = pits.quiet_intro;
     StartLevel_PITS();
     quiet_text = FALSE;
@@ -1037,13 +1120,46 @@ static void PlayFrame(int action, struct MouseActionInfo mouse)
   pits_prompt.pages_shown = 0;
 }
 
+// a click on the strip of gems and keys: what that gem's or key's key does
+static int getItemAction(struct MouseActionInfo mouse)
+{
+  static int item_actions[PITS_NUM_ITEMS] =
+  {
+    KEY_BUTTON_SNAP | MV_LEFT,
+    KEY_BUTTON_SNAP | MV_UP,
+    KEY_BUTTON_SNAP | MV_RIGHT,
+    KEY_BUTTON_SNAP | MV_DOWN,
+    KEY_BUTTON_DROP | MV_LEFT,
+    KEY_BUTTON_DROP | MV_UP,
+    KEY_BUTTON_DROP | MV_RIGHT,
+  };
+  int item = mouse.ly - PITS_ITEMS_LY;
+
+  if (mouse.button != MB_LEFTBUTTON || item < 0 || item >= PITS_NUM_ITEMS)
+    return 0;
+
+  return item_actions[item];
+}
+
 void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
 {
   struct MouseActionInfo no_mouse = { 0, 0, 0, 0 };
+  int player_action = action[0];
+
+  // the strip of gems and keys: a click there is its key, and not a square
+  if (mouse.lx == PITS_ITEMS_LX && pits_prompt.mode == PITS_PROMPT_NONE)
+  {
+    int item_action = getItemAction(mouse);
+
+    if (item_action != 0)
+      player_action = item_action;
+
+    mouse = no_mouse;
+  }
 
   if (pits_prompt.mode != PITS_PROMPT_NONE)
   {
-    HandlePrompt(action[0], mouse);
+    HandlePrompt(player_action, mouse);
 
     // answered: the frame that asked is played again
     if (pits_prompt.mode == PITS_PROMPT_NONE)
@@ -1055,13 +1171,13 @@ void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
   // after the room or the cursor, the pit waits until all is let go
   if (pits_prompt.wait_release)
   {
-    if (action[0] == 0 && mouse.button == 0)
+    if (player_action == 0 && mouse.button == 0)
       pits_prompt.wait_release = FALSE;
 
     PlayFrame(0, no_mouse);
   }
   else
   {
-    PlayFrame(action[0], mouse);
+    PlayFrame(player_action, mouse);
   }
 }

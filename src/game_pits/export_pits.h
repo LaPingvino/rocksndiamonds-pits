@@ -17,6 +17,16 @@
 #define PITS_CARRY_NEXT			1	// those held when a level was last won
 #define PITS_CARRY_RESTART		2	// those this level started with last time
 
+// the strip of gems and keys over the pit (red, green, blue, yellow gem; red,
+// green, blue key): a click on it comes as the square PITS_ITEMS_LX,
+// PITS_ITEMS_LY + the item (PITS_NUM_ITEMS: between them), outside the level
+#define PITS_NUM_ITEMS			7
+#define PITS_ITEMS_LX			100
+#define PITS_ITEMS_LY			100
+#define IN_PITS_ITEMS(x, y)		((x) == PITS_ITEMS_LX &&		\
+					 (y) >= PITS_ITEMS_LY &&		\
+					 (y) <= PITS_ITEMS_LY + PITS_NUM_ITEMS)
+
 struct GameInfo_PITS
 {
   boolean level_solved;

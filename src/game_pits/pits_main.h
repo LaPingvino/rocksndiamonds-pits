@@ -291,6 +291,10 @@ struct PitsViewInfo
   int anim_counter;
   int sparkle;
   boolean show_all;
+
+  int gems[4];				// for the strip of gems and keys
+  int keys[3];
+  int gem_in_use;
 };
 
 
@@ -339,5 +343,6 @@ int getTargetsStillNeeded_PITS(void);
 void InitGfx_PITS(char *);
 void InitSound_PITS(char *);
 void PlaySounds_PITS(int);
+char *getKeyName_PITS(boolean);
 
 #endif	// PITS_MAIN_H

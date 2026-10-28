@@ -477,7 +477,11 @@ static void SetPlayerMouseAction(int mx, int my, int button)
 
   ClearPlayerMouseAction();
 
-  if (!IN_GFX_FIELD_PLAY(mx, my) || !IN_LEV_FIELD(lx, ly))
+  // (The Puzzle Pits' strip of gems and keys is outside the level)
+  if (!IN_GFX_FIELD_PLAY(mx, my) ||
+      !(IN_LEV_FIELD(lx, ly) ||
+	(level.game_engine_type == GAME_ENGINE_TYPE_PITS &&
+	 IN_PITS_ITEMS(lx, ly))))
     return;
 
   local_player->mouse_action.lx = lx;

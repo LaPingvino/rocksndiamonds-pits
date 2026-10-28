@@ -56,6 +56,7 @@ static unsigned char palette[NUM_COLORS][3] =
 };
 
 static void getRoomGeometry(int *, int *, int *);
+static void DrawItems(void);
 
 static char *sound_names[PITS_NUM_SOUNDS] =
 {
@@ -189,6 +190,20 @@ static Uint32 *draw_pixels;
 static int draw_pitch;			// in pixels
 static int draw_width, draw_height;
 static int draw_scale;
+static boolean draw_dimmed;		// the strip's gems and keys not held
+
+// a colour as a thing not held: darker, and greyer
+static Uint32 getDimmedColor(Uint32 color)
+{
+  int r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
+  int grey = (r + g + b) / 3;
+
+  r = (r + grey) / 4;
+  g = (g + grey) / 4;
+  b = (b + grey) / 4;
+
+  return (0xff000000 | (r << 16) | (g << 8) | b);
+}
 
 static void DrawShape(int nr, int x, int y, boolean masked)
 {
@@ -209,6 +224,9 @@ static void DrawShape(int nr, int x, int y, boolean masked)
 
       if (masked && index == 0)
 	continue;
+
+      if (draw_dimmed)
+	color = getDimmedColor(color);
 
       for (j = 0; j < draw_scale; j++)
       {
@@ -382,10 +400,9 @@ static void DrawRoom(void)
   DrawShape(100 + pits_prompt.facing + 3, x,          y,          TRUE);
 }
 
-// the TARGET cursor: a frame on a square
-static void DrawFrame(int x, int y, int size)
+// a frame on a square: the TARGET cursor, the gem in use
+static void DrawFrame(int x, int y, int size, Uint32 color)
 {
-  Uint32 color = colors[11];		// yellow
   int width = 2 * draw_scale;
   int i, j;
 
@@ -430,6 +447,111 @@ static void getRoomGeometry(int *ox, int *oy, int *scale)
   square = PITS_SQUARE * *scale;
   *ox = (SXSIZE - PITS_ROOM_COLS * square) / 2;
   *oy = (SYSIZE - PITS_ROOM_ROWS * square) / 2 + square / 2;
+}
+
+// the strip of gems and keys: a column along the left edge, darker, with
+// the gems and keys in its middle, as big as the pit's squares
+static void getItemsGeometry(int *width, int *size, int *gap)
+{
+  int vx0, vy0, ox, oy, cols, rows, scale;
+
+  getViewGeometry_PITS(0, 0, &vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
+
+  *size = PITS_SQUARE * scale;
+  *gap = 3 * scale;
+  *width = *size + 2 * *gap;
+}
+
+// where an item is: the gems, then a little apart the keys
+static int getItemY(int item, int size, int gap)
+{
+  int height = PITS_NUM_ITEMS * (size + gap) + gap;
+
+  return ((SYSIZE - height) / 2 + item * (size + gap) +
+	  (item >= 4 ? 2 * gap : 0));
+}
+
+// the item at a place on the screen (in the playfield): -1 off the strip,
+// PITS_NUM_ITEMS on it between the items
+static int getItemFromScreen(int x, int y)
+{
+  int width, size, gap, i;
+
+  getItemsGeometry(&width, &size, &gap);
+
+  if (x < SX || x >= SX + width)
+    return -1;
+
+  for (i = 0; i < PITS_NUM_ITEMS; i++)
+  {
+    int item_y = SY + getItemY(i, size, gap);
+
+    if (y >= item_y && y < item_y + size)
+      return i;
+  }
+
+  return PITS_NUM_ITEMS;
+}
+
+static void DrawItems(void)
+{
+  int width, size, gap, i, x, y;
+
+  getItemsGeometry(&width, &size, &gap);
+
+  // the column, the pit darker under it
+  for (y = 0; y < draw_height; y++)
+    for (x = 0; x < width && x < draw_width; x++)
+      draw_pixels[y * draw_pitch + x] =
+	0xff000000 | ((draw_pixels[y * draw_pitch + x] >> 2) & 0x3f3f3f);
+
+  draw_scale = size / PITS_SQUARE;
+
+  for (i = 0; i < PITS_NUM_ITEMS; i++)
+  {
+    boolean gem = (i < 4);
+    int count = (gem ? pits_view.gems[i] : pits_view.keys[i - 4]);
+    boolean in_use = (gem && (pits_view.gem_in_use == i ||
+			      (i == PITS_YELLOW && pits_view.show_all)));
+    int shape = (gem ? PITS_U_GEM_RED + i : PITS_U_KEY_RED + i - 4);
+
+    x = gap;
+    y = getItemY(i, size, gap);
+
+    draw_dimmed = (count <= 0);
+    DrawShape(shape, x, y, FALSE);
+    draw_dimmed = FALSE;
+
+    if (in_use)
+      DrawFrame(x - gap, y - gap, size + 2 * gap, colors[1]);	// white
+  }
+}
+
+// how many of each are held, on the strip (the yellow gem: held or not)
+static void DrawItemCounts(Bitmap *target_bitmap)
+{
+  int font_nr = FONT_INPUT_1;
+  int font_width = getFontWidth(font_nr);
+  int font_height = getFontHeight(font_nr);
+  int width, size, gap, i;
+
+  getItemsGeometry(&width, &size, &gap);
+
+  for (i = 0; i < PITS_NUM_ITEMS; i++)
+  {
+    int count = (i < 4 ? pits_view.gems[i] : pits_view.keys[i - 4]);
+    char text[16];
+
+    if (i == PITS_YELLOW)
+      continue;
+
+    sprintf(text, "%d", MIN(count, 99));
+
+    DrawTextExt(target_bitmap,
+		SX + gap + size - strlen(text) * font_width,
+		SY + getItemY(i, size, gap) + size - font_height,
+		text, font_nr, BLIT_MASKED);
+  }
 }
 
 static void getShownGeometry(int *vx0, int *vy0, int *ox, int *oy,
@@ -496,10 +618,60 @@ static void RenderView(void)
     if (pits_prompt.mode == PITS_PROMPT_TARGET)
       DrawFrame(ox + (pits_prompt.cx - vx0) * PITS_SQUARE * scale,
 		oy + (pits_prompt.cy - vy0) * PITS_SQUARE * scale,
-		PITS_SQUARE * scale);
+		PITS_SQUARE * scale, colors[11]);	// yellow
+    else
+      DrawItems();
   }
 
   SDL_UnlockSurface(surface);
+}
+
+// a line of help in the typing room: the longest that fits
+static void DrawRoomHelp(Bitmap *target_bitmap, int y)
+{
+  static char *formats[] =
+  {
+    "%s: type the letter you stand on   OK: done",
+    "%s: type the letter   OK: done",
+    "%s: type   OK: done",
+    NULL
+  };
+  int font_nr = FONT_INPUT_1;
+  int font_width = getFontWidth(font_nr);
+  char *snap_key = getKeyName_PITS(TRUE);
+  char names[3][64];
+  char text[128] = "";
+  int i, j;
+
+  // the snap key's name, with the action's or without; or the action's
+  if (snap_key != NULL)
+  {
+    sprintf(names[0], "Snap (%s)", snap_key);
+    strcpy(names[1], snap_key);
+  }
+  else
+  {
+    strcpy(names[0], "Snap");
+    strcpy(names[1], "Snap");
+  }
+  strcpy(names[2], "Snap");
+
+  for (j = 0; j < 3; j++)
+  {
+    for (i = 0; formats[i] != NULL; i++)
+    {
+      sprintf(text, formats[i], names[j]);
+
+      if (strlen(text) * font_width <= SXSIZE)
+	break;
+    }
+
+    if (formats[i] != NULL)
+      break;
+  }
+
+  DrawTextExt(target_bitmap, SX + (SXSIZE - strlen(text) * font_width) / 2, y,
+	      text, font_nr, BLIT_MASKED);
 }
 
 // the words on the room's keys, and what the player is asked
@@ -559,6 +731,9 @@ static void DrawPromptText(Bitmap *target_bitmap)
   DrawTextExt(target_bitmap,
 	      SX + (SXSIZE - (PITS_INPUT_LEN + 1) * font_width) / 2,
 	      SY + oy - square - font_height, line, font_nr, BLIT_MASKED);
+
+  // how to type, below the keys
+  DrawRoomHelp(target_bitmap, SY + oy + PITS_ROOM_ROWS * square + square / 2);
 }
 
 void RedrawPlayfield_PITS(boolean force_redraw)
@@ -573,14 +748,33 @@ void BlitScreenToBitmap_PITS(Bitmap *target_bitmap)
   if (pits_bitmap != NULL)
     BlitBitmap(pits_bitmap, target_bitmap, 0, 0, SXSIZE, SYSIZE, SX, SY);
 
-  if (pits_prompt.mode != PITS_PROMPT_NONE && !program.headless)
+  if (program.headless)
+    return;
+
+  if (pits_prompt.mode != PITS_PROMPT_NONE)
     DrawPromptText(target_bitmap);
+  else
+    DrawItemCounts(target_bitmap);
 }
 
 static int getLevelFromScreen(int screen_pos, boolean horizontal)
 {
+  // R'n'D asks for x, then for y: x is kept for the strip of gems and keys
+  static int last_screen_x = -1;
   int vx0, vy0, ox, oy, cols, rows, scale;
   int square, pos;
+
+  if (horizontal)
+    last_screen_x = screen_pos;
+
+  // the strip of gems and keys: outside the level (see export_pits.h)
+  if (pits_prompt.mode == PITS_PROMPT_NONE)
+  {
+    int item = getItemFromScreen(last_screen_x, screen_pos);
+
+    if (item != -1)
+      return (horizontal ? PITS_ITEMS_LX : PITS_ITEMS_LY + item);
+  }
 
   // the typing room: its keys' places
   if (pits_prompt.mode == PITS_PROMPT_INPUT)
@@ -612,6 +806,41 @@ int getLevelFromScreenX_PITS(int x)
 int getLevelFromScreenY_PITS(int y)
 {
   return getLevelFromScreen(y, FALSE);
+}
+
+
+// the name of the snap or drop key, as "Left Ctrl"; NULL if it has none
+char *getKeyName_PITS(boolean snap)
+{
+  static char names[2][64];
+  char *name = names[snap ? 1 : 0];
+  Key key = (snap ? setup.input[0].key.snap : setup.input[0].key.drop);
+  char *key_name;
+  int i;
+
+  if (setup.input[0].use_joystick || key == KSYM_UNDEFINED)
+    return NULL;
+
+  key_name = getKeyNameFromKey(key);
+
+  if (key_name == NULL || key_name[0] == '\0' || strlen(key_name) > 40)
+    return NULL;
+
+  // "left control": "Left Ctrl"
+  for (i = 0; key_name[i] != '\0'; i++)
+    name[i] = (i == 0 || key_name[i - 1] == ' ' ?
+	       toupper((unsigned char)key_name[i]) : key_name[i]);
+  name[i] = '\0';
+
+  if (strstr(name, "Control") != NULL)
+  {
+    char *control = strstr(name, "Control");
+
+    memmove(control + 4, control + 7, strlen(control + 7) + 1);
+    memcpy(control, "Ctrl", 4);
+  }
+
+  return name;
 }
 
 

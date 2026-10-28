@@ -5910,7 +5910,9 @@ void GameEnd(void)
   // increment and load next level (if possible and not configured otherwise)
   AdvanceToNextLevel();
 
-  if (game.LevelSolved_SaveScore && scores.last_added >= 0 && setup.show_scores_after_game)
+  // (The Puzzle Pits: on to the next level, its scores are in the Hall of Fame)
+  if (game.LevelSolved_SaveScore && scores.last_added >= 0 && setup.show_scores_after_game &&
+      level.game_engine_type != GAME_ENGINE_TYPE_PITS)
   {
     SetGameStatus(GAME_MODE_SCORES);
 
@@ -6046,6 +6048,11 @@ void NewHighScore(int level_nr, boolean tape_saved)
     return;
 
   SaveScoreTape(level_nr);
+
+  // The Puzzle Pits: the scores stay local (the high score server doesn't
+  // know its engine)
+  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    return;
 
   if (setup.ask_for_using_api_server)
   {
