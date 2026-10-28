@@ -1,0 +1,59 @@
+# Rocks'n'Diamonds with The Puzzle Pits engine: Arch's rocksndiamonds
+# package, with the patches from https://github.com/LaPingvino/rocksndiamonds-pits
+
+pkgname=rocksndiamonds-pits
+_commit=1aa64ec958a5aadeb5f488571c435929472e4afe
+pkgver=4.4.2.4
+pkgrel=1
+pkgdesc="Rocks'n'Diamonds, with an engine for The Puzzle Pits (its own levels, rules, pictures and sounds)"
+arch=(x86_64)
+url="https://github.com/LaPingvino/rocksndiamonds-pits"
+license=('GPL-2.0-only' 'Apache-2.0')
+depends=('sdl2' 'sdl2_image' 'sdl2_mixer' 'sdl2_net' 'rocksndiamonds-data')
+optdepends=('rocksndiamonds-contrib')
+makedepends=('git')
+provides=("rocksndiamonds=$pkgver")
+conflicts=('rocksndiamonds')
+_patches=(0001-The-Puzzle-Pits-engine-s-place-in-R-n-D-hooks-and-in.patch
+	0002-Add-The-Puzzle-Pits-engine-game_pits.patch
+	0003-Add-The-Puzzle-Pits-level-set.patch)
+source=(https://www.artsoft.org/RELEASES/linux/rocksndiamonds/rocksndiamonds-$pkgver-linux.tar.gz
+	rocksndiamonds.desktop
+	"${_patches[@]/#/https://raw.githubusercontent.com/LaPingvino/rocksndiamonds-pits/$_commit/patches/}")
+sha256sums=('59ebdc8985923919a3f3cd7ceb2e9a073ca5b4755ffda0f908f4bf498bc61f99'
+            'f92b604abeeda66aa28d06ae2d8b0ea89aedfd7686d3f8c73d8c0b05ad039439'
+            'c694114eab41efe6e2eae121f682482b7e279a9ae8d6be35777e83b5f7587007'
+            '9bdcd92466af0da0434c9222855c3ad9afa856a7736d69ae8acc26c731d08473'
+            '5de58eb92856719ea159b4e6f884548270cd79e31ca393b7953b820c9c31da5c')
+
+prepare() {
+  cd "$srcdir"/rocksndiamonds-$pkgver
+  # git apply: the level set's patch has binary files
+  for p in "${_patches[@]}"; do
+    git apply "$srcdir/$p"
+  done
+}
+
+build() {
+  cd "$srcdir"/rocksndiamonds-$pkgver
+  make clean
+  make BASE_PATH=/usr/share/rocksndiamonds CC="gcc -Wno-format-overflow"
+}
+
+package() {
+  cd "$srcdir"/rocksndiamonds-$pkgver
+
+  install -Dm0755 rocksndiamonds "$pkgdir"/usr/bin/rocksndiamonds
+
+  install -d "$pkgdir"/usr/share/doc/$pkgname/
+  cp -a docs/elements "$pkgdir"/usr/share/doc/$pkgname/
+  install -Dm0644 README.md "$pkgdir"/usr/share/doc/$pkgname/README.md 2>/dev/null || true
+
+  # The Puzzle Pits' level set, beside rocksndiamonds-data's
+  install -d "$pkgdir"/usr/share/rocksndiamonds/levels
+  cp -a levels/The_Puzzle_Pits "$pkgdir"/usr/share/rocksndiamonds/levels/
+  install -Dm0644 levels/The_Puzzle_Pits/LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE-The_Puzzle_Pits
+
+  install -Dm0644 graphics/gfx_classic/icons/icon.png "$pkgdir"/usr/share/icons/hicolor/128x128/apps/rocksndiamonds.png
+  install -Dm0644 "$srcdir"/rocksndiamonds.desktop "$pkgdir"/usr/share/applications/rocksndiamonds.desktop
+}

@@ -11,6 +11,8 @@ make
 ./rocksndiamonds
 ```
 
+On Arch Linux, `packaging/arch/PKGBUILD` builds it as a package that replaces `rocksndiamonds` (with `rocksndiamonds-data` for the graphics, sounds and other levels): `cd packaging/arch && makepkg -si`.
+
 Choose the level set *The Puzzle Pits* (it is in `levels/The_Puzzle_Pits`). A level set of your own is a folder with the levels (`LEVEL01.PIT`, `LEVEL02.PIT` ...), the game's `TILES1.DAT` to `TILES3.DAT` and its sounds, and a `levelinfo.conf` with `filename: LEVEL%02d.PIT` and `filetype: PITS`. Levels made with [the Puzzle Pits level editor](https://lapingvino.github.io/The-Puzzle-Pits/editor/) work as they are.
 
 | | |
