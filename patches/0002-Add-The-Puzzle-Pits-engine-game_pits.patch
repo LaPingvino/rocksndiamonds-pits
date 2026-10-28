@@ -1,6 +1,6 @@
-From 572b99ee7692ebabe4c47189dbf64b34886818e0 Mon Sep 17 00:00:00 2001
+From 5d75e0ca8c751ab36491be660556393ca5ce847b Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 21:42:14 +0000
+Date: Wed, 28 Oct 2026 21:59:12 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
 
 The Puzzle Pits (Abe Pralle, Plasma Works, 1995) is a Sokoban-like
@@ -31,11 +31,11 @@ from its code.
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  src/game_pits/Makefile     |    3 +
- src/game_pits/pits_gfx.c   |  887 ++++++++++++++++++
+ src/game_pits/pits_gfx.c   |  898 +++++++++++++++++++
  src/game_pits/pits_logic.c | 1735 ++++++++++++++++++++++++++++++++++++
- src/game_pits/pits_main.c  | 1183 ++++++++++++++++++++++++
+ src/game_pits/pits_main.c  | 1206 +++++++++++++++++++++++++
  src/game_pits/pits_main.h  |  348 ++++++++
- 5 files changed, 4156 insertions(+)
+ 5 files changed, 4190 insertions(+)
  create mode 100644 src/game_pits/pits_gfx.c
  create mode 100644 src/game_pits/pits_logic.c
  create mode 100644 src/game_pits/pits_main.c
@@ -57,10 +57,10 @@ index 7bfba96..10f59b4 100644
  	$(RM) $(GAME_PITS)
 diff --git a/src/game_pits/pits_gfx.c b/src/game_pits/pits_gfx.c
 new file mode 100644
-index 0000000..53b747d
+index 0000000..d3157a0
 --- /dev/null
 +++ b/src/game_pits/pits_gfx.c
-@@ -0,0 +1,887 @@
+@@ -0,0 +1,898 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -512,9 +512,10 @@ index 0000000..53b747d
 +  *oy = (SYSIZE - PITS_ROOM_ROWS * square) / 2 + square / 2;
 +}
 +
-+// the strip of gems and keys: a column along the left edge, darker, with
-+// the gems and keys in its middle, as big as the pit's squares
-+static void getItemsGeometry(int *width, int *size, int *gap)
++// the strip of gems and keys: a band along the bottom edge, darker, with
++// the gems and keys in its middle, as big as the pit's squares (the view
++// keeps the player in the middle, at least three squares above it)
++static void getItemsGeometry(int *height, int *size, int *gap)
 +{
 +  int vx0, vy0, ox, oy, cols, rows, scale;
 +
@@ -522,35 +523,43 @@ index 0000000..53b747d
 +
 +  *size = PITS_SQUARE * scale;
 +  *gap = 3 * scale;
-+  *width = *size + 2 * *gap;
++  *height = *size + 2 * *gap;
 +}
 +
-+// where an item is: the gems, then a little apart the keys
-+static int getItemY(int item, int size, int gap)
++// where an item is: the gems, then a little apart the keys, then the "?"
++// (as item PITS_NUM_ITEMS)
++static int getItemX(int item, int size, int gap)
 +{
-+  int height = PITS_NUM_ITEMS * (size + gap) + gap;
++  int slots = PITS_NUM_ITEMS + 1;
++  int width = slots * size + (slots - 1) * gap + 8 * gap;
 +
-+  return ((SYSIZE - height) / 2 + item * (size + gap) +
-+	  (item >= 4 ? 2 * gap : 0));
++  return ((SXSIZE - width) / 2 + item * (size + gap) +
++	  (item >= 4 ? 4 * gap : 0) + (item >= PITS_NUM_ITEMS ? 4 * gap : 0));
 +}
 +
-+// the item at a place on the screen (in the playfield): -1 off the strip,
-+// PITS_NUM_ITEMS on it between the items
-+static int getItemFromScreen(int x, int y)
++static boolean isOnItems(int y)
 +{
-+  int width, size, gap, i;
++  int height, size, gap;
 +
-+  getItemsGeometry(&width, &size, &gap);
++  getItemsGeometry(&height, &size, &gap);
 +
-+  if (x < SX || x >= SX + width)
-+    return -1;
++  return (y >= SY + SYSIZE - height && y < SY + SYSIZE);
++}
 +
-+  for (i = 0; i < PITS_NUM_ITEMS; i++)
++// the item at a place on the band: PITS_NUM_ITEMS between the items,
++// PITS_ITEM_HELP the "?"
++static int getItemFromScreenX(int x)
++{
++  int height, size, gap, i;
++
++  getItemsGeometry(&height, &size, &gap);
++
++  for (i = 0; i <= PITS_NUM_ITEMS; i++)
 +  {
-+    int item_y = SY + getItemY(i, size, gap);
++    int item_x = SX + getItemX(i, size, gap);
 +
-+    if (y >= item_y && y < item_y + size)
-+      return i;
++    if (x >= item_x && x < item_x + size)
++      return (i < PITS_NUM_ITEMS ? i : PITS_ITEM_HELP);
 +  }
 +
 +  return PITS_NUM_ITEMS;
@@ -558,13 +567,13 @@ index 0000000..53b747d
 +
 +static void DrawItems(void)
 +{
-+  int width, size, gap, i, x, y;
++  int height, size, gap, i, x, y;
 +
-+  getItemsGeometry(&width, &size, &gap);
++  getItemsGeometry(&height, &size, &gap);
 +
-+  // the column, the pit darker under it
-+  for (y = 0; y < draw_height; y++)
-+    for (x = 0; x < width && x < draw_width; x++)
++  // the band, the pit darker under it
++  for (y = MAX(0, draw_height - height); y < draw_height; y++)
++    for (x = 0; x < draw_width; x++)
 +      draw_pixels[y * draw_pitch + x] =
 +	0xff000000 | ((draw_pixels[y * draw_pitch + x] >> 2) & 0x3f3f3f);
 +
@@ -578,8 +587,8 @@ index 0000000..53b747d
 +			      (i == PITS_YELLOW && pits_view.show_all)));
 +    int shape = (gem ? PITS_U_GEM_RED + i : PITS_U_KEY_RED + i - 4);
 +
-+    x = gap;
-+    y = getItemY(i, size, gap);
++    x = getItemX(i, size, gap);
++    y = SYSIZE - height + gap;
 +
 +    draw_dimmed = (count <= 0);
 +    DrawShape(shape, x, y, FALSE);
@@ -588,6 +597,10 @@ index 0000000..53b747d
 +    if (in_use)
 +      DrawFrame(x - gap, y - gap, size + 2 * gap, colors[1]);	// white
 +  }
++
++  // the "?": a floor square, its sign drawn with the counts
++  DrawShape(PITS_U_FLOOR, getItemX(PITS_NUM_ITEMS, size, gap),
++	    SYSIZE - height + gap, FALSE);
 +}
 +
 +// how many of each are held, on the strip (the yellow gem: held or not)
@@ -596,9 +609,9 @@ index 0000000..53b747d
 +  int font_nr = FONT_INPUT_1;
 +  int font_width = getFontWidth(font_nr);
 +  int font_height = getFontHeight(font_nr);
-+  int width, size, gap, i;
++  int height, size, gap, i;
 +
-+  getItemsGeometry(&width, &size, &gap);
++  getItemsGeometry(&height, &size, &gap);
 +
 +  for (i = 0; i < PITS_NUM_ITEMS; i++)
 +  {
@@ -611,10 +624,16 @@ index 0000000..53b747d
 +    sprintf(text, "%d", MIN(count, 99));
 +
 +    DrawTextExt(target_bitmap,
-+		SX + gap + size - strlen(text) * font_width,
-+		SY + getItemY(i, size, gap) + size - font_height,
++		SX + getItemX(i, size, gap) + size - strlen(text) * font_width,
++		SY + SYSIZE - gap - font_height,
 +		text, font_nr, BLIT_MASKED);
 +  }
++
++  // the "?", in the middle of its square
++  DrawTextExt(target_bitmap,
++	      SX + getItemX(PITS_NUM_ITEMS, size, gap) + (size - font_width) / 2,
++	      SY + SYSIZE - height + gap + (size - font_height) / 2,
++	      "?", font_nr, BLIT_MASKED);
 +}
 +
 +static void getShownGeometry(int *vx0, int *vy0, int *ox, int *oy,
@@ -822,7 +841,8 @@ index 0000000..53b747d
 +
 +static int getLevelFromScreen(int screen_pos, boolean horizontal)
 +{
-+  // R'n'D asks for x, then for y: x is kept for the strip of gems and keys
++  // R'n'D asks for x, then for y: the band is known by y, so x looks at
++  // where the mouse is, and y uses the x it was just asked for
 +  static int last_screen_x = -1;
 +  int vx0, vy0, ox, oy, cols, rows, scale;
 +  int square, pos;
@@ -833,20 +853,11 @@ index 0000000..53b747d
 +  // the strip of gems and keys: outside the level (see export_pits.h)
 +  if (pits_prompt.mode == PITS_PROMPT_NONE)
 +  {
-+    int item = getItemFromScreen(last_screen_x, screen_pos);
++    if (horizontal && isOnItems(gfx.mouse_y))
++      return PITS_ITEMS_LX;
 +
-+    if (item != -1)
-+      return (horizontal ? PITS_ITEMS_LX : PITS_ITEMS_LY + item);
-+  }
-+
-+  // the typing room: its keys' places
-+  if (pits_prompt.mode == PITS_PROMPT_INPUT)
-+  {
-+    getRoomGeometry(&ox, &oy, &scale);
-+    square = PITS_SQUARE * scale;
-+    pos = screen_pos - (horizontal ? SX + ox : SY + oy);
-+
-+    return (pos < 0 ? -1 : pos / square);
++    if (!horizontal && isOnItems(screen_pos))
++      return PITS_ITEMS_LY + getItemFromScreenX(last_screen_x);
 +  }
 +
 +  getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
@@ -2691,10 +2702,10 @@ index 0000000..53ff4bf
 +}
 diff --git a/src/game_pits/pits_main.c b/src/game_pits/pits_main.c
 new file mode 100644
-index 0000000..39c6ad0
+index 0000000..ee2bb8d
 --- /dev/null
 +++ b/src/game_pits/pits_main.c
-@@ -0,0 +1,1183 @@
+@@ -0,0 +1,1206 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -3109,14 +3120,15 @@ index 0000000..39c6ad0
 +  strcat(text, "\n");
 +}
 +
-+static void ShowControls(void)
++// the controls: before the first level of a run, and again when asked
++static void ShowControls(boolean again)
 +{
 +  char *snap_key = getKeyName_PITS(TRUE);
 +  char *drop_key = getKeyName_PITS(FALSE);
 +  char text[TEXT_LINES * (TEXT_COLUMNS + 2) + 1] = "Controls\n\n";
 +  char line[TEXT_COLUMNS * 4];
 +
-+  if (controls_shown)
++  if (controls_shown && !again)
 +    return;
 +
 +  controls_shown = TRUE;
@@ -3135,7 +3147,12 @@ index 0000000..39c6ad0
 +	  (drop_key ? ")" : ""));
 +  AddWrapped(text, line);
 +
-+  AddWrapped(text, "Or click the gems and keys on the left.");
++  sprintf(line, "Drop%s%s%s alone, or the \"?\": this help again.",
++	  (drop_key ? " (" : ""), (drop_key ? drop_key : ""),
++	  (drop_key ? ")" : ""));
++  AddWrapped(text, line);
++
++  AddWrapped(text, "Or click the gems and keys at the bottom.");
 +  AddWrapped(text, "Left mouse button: step towards a square. Right button: "
 +	     "walk there.");
 +
@@ -3763,7 +3780,7 @@ index 0000000..39c6ad0
 +    pits.started = TRUE;
 +
 +    // not one of the level's pages: a frame played again doesn't count it
-+    ShowControls();
++    ShowControls(FALSE);
 +
 +    quiet_text = pits.quiet_intro;
 +    StartLevel_PITS();
@@ -3842,6 +3859,23 @@ index 0000000..39c6ad0
 +{
 +  struct MouseActionInfo no_mouse = { 0, 0, 0, 0 };
 +  int player_action = action[0];
++  static boolean help_held = FALSE;
++  boolean help;
++
++  // drop alone, or the "?" on the strip: the controls again, as a script's
++  // text is shown (no turn, nothing in the game changes); snap held too
++  // doesn't matter (SDL may report Left Ctrl along with Right Ctrl)
++  help = (pits_prompt.mode == PITS_PROMPT_NONE &&
++	  ((player_action & (MV_ANY_DIRECTION | KEY_BUTTON_DROP)) ==
++	   KEY_BUTTON_DROP ||
++	   (mouse.lx == PITS_ITEMS_LX &&
++	    mouse.ly == PITS_ITEMS_LY + PITS_ITEM_HELP &&
++	    mouse.button == MB_LEFTBUTTON)));
++
++  if (help && !help_held)
++    ShowControls(TRUE);
++
++  help_held = help;
 +
 +  // the strip of gems and keys: a click there is its key, and not a square
 +  if (mouse.lx == PITS_ITEMS_LX && pits_prompt.mode == PITS_PROMPT_NONE)

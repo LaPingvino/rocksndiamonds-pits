@@ -1,6 +1,6 @@
-From 10d1f7f21bad964627ad81a5745cc861cf1c9f0f Mon Sep 17 00:00:00 2001
+From fe6d0bef6e040a2c654ff8349b36c002206ea012 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 21:42:14 +0000
+Date: Wed, 28 Oct 2026 21:59:12 +0000
 Subject: [PATCH 1/3] The Puzzle Pits engine's place in R'n'D: hooks and
  interface
 
@@ -14,13 +14,13 @@ Claude-Session: https://claude.ai/code/session_01T523s2LnR11HQaMAgNseiX
  src/game.c                  | 122 ++++++++++++++++-
  src/game.h                  |   2 +
  src/game_pits/Makefile      |  38 ++++++
- src/game_pits/export_pits.h |  67 ++++++++++
+ src/game_pits/export_pits.h |  69 ++++++++++
  src/game_pits/game_pits.h   |  12 ++
  src/game_pits_elements.inc  | 112 ++++++++++++++++
  src/main.h                  |   7 +-
  src/screens.c               |   1 +
  src/tools.c                 |  10 ++
- 13 files changed, 700 insertions(+), 6 deletions(-)
+ 13 files changed, 702 insertions(+), 6 deletions(-)
  create mode 100644 src/game_pits/Makefile
  create mode 100644 src/game_pits/export_pits.h
  create mode 100644 src/game_pits/game_pits.h
@@ -762,10 +762,10 @@ index 0000000..7bfba96
 +endif
 diff --git a/src/game_pits/export_pits.h b/src/game_pits/export_pits.h
 new file mode 100644
-index 0000000..d9e17dd
+index 0000000..8d798ca
 --- /dev/null
 +++ b/src/game_pits/export_pits.h
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,69 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -786,14 +786,16 @@ index 0000000..d9e17dd
 +#define PITS_CARRY_RESTART		2	// those this level started with last time
 +
 +// the strip of gems and keys over the pit (red, green, blue, yellow gem; red,
-+// green, blue key): a click on it comes as the square PITS_ITEMS_LX,
-+// PITS_ITEMS_LY + the item (PITS_NUM_ITEMS: between them), outside the level
++// green, blue key; then "?", the controls): a click on it comes as the square
++// PITS_ITEMS_LX, PITS_ITEMS_LY + the item (PITS_NUM_ITEMS: between them;
++// PITS_ITEM_HELP: the "?"), outside the level
 +#define PITS_NUM_ITEMS			7
++#define PITS_ITEM_HELP			(PITS_NUM_ITEMS + 1)
 +#define PITS_ITEMS_LX			100
 +#define PITS_ITEMS_LY			100
 +#define IN_PITS_ITEMS(x, y)		((x) == PITS_ITEMS_LX &&		\
 +					 (y) >= PITS_ITEMS_LY &&		\
-+					 (y) <= PITS_ITEMS_LY + PITS_NUM_ITEMS)
++					 (y) <= PITS_ITEMS_LY + PITS_ITEM_HELP)
 +
 +struct GameInfo_PITS
 +{
