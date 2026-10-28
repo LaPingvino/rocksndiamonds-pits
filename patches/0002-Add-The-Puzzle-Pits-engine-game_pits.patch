@@ -1,6 +1,6 @@
-From 096fd9b8b949d6d9c4dfe338368e32ae183b745d Mon Sep 17 00:00:00 2001
+From 0fb36a5e2e3692b95f7127ef87b102b1d62d2a90 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 19:46:37 +0000
+Date: Wed, 28 Oct 2026 21:15:18 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
 
 The Puzzle Pits (Abe Pralle, Plasma Works, 1995) is a Sokoban-like
@@ -32,10 +32,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  src/game_pits/Makefile     |    3 +
  src/game_pits/pits_gfx.c   |  658 ++++++++++++++
- src/game_pits/pits_logic.c | 1730 ++++++++++++++++++++++++++++++++++++
- src/game_pits/pits_main.c  | 1017 +++++++++++++++++++++
- src/game_pits/pits_main.h  |  342 +++++++
- 5 files changed, 3750 insertions(+)
+ src/game_pits/pits_logic.c | 1735 ++++++++++++++++++++++++++++++++++++
+ src/game_pits/pits_main.c  | 1067 ++++++++++++++++++++++
+ src/game_pits/pits_main.h  |  343 +++++++
+ 5 files changed, 3806 insertions(+)
  create mode 100644 src/game_pits/pits_gfx.c
  create mode 100644 src/game_pits/pits_logic.c
  create mode 100644 src/game_pits/pits_main.c
@@ -721,10 +721,10 @@ index 0000000..3e0c897
 +}
 diff --git a/src/game_pits/pits_logic.c b/src/game_pits/pits_logic.c
 new file mode 100644
-index 0000000..fe85a10
+index 0000000..53ff4bf
 --- /dev/null
 +++ b/src/game_pits/pits_logic.c
-@@ -0,0 +1,1730 @@
+@@ -0,0 +1,1735 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -1625,6 +1625,11 @@ index 0000000..fe85a10
 +{
 +  pits.pushing = FALSE;
 +
++  // waiting makes the player's own square their last square (scripts take
++  // LASTX, LASTY being the player's position as "the player waited")
++  pits.lastx = pits.px;
++  pits.lasty = pits.py;
++
 +  TurnChecks_PITS();
 +
 +  pits.moves++;
@@ -2457,10 +2462,10 @@ index 0000000..fe85a10
 +}
 diff --git a/src/game_pits/pits_main.c b/src/game_pits/pits_main.c
 new file mode 100644
-index 0000000..9111ec2
+index 0000000..f8ba912
 --- /dev/null
 +++ b/src/game_pits/pits_main.c
-@@ -0,0 +1,1017 @@
+@@ -0,0 +1,1067 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -2490,7 +2495,21 @@ index 0000000..9111ec2
 +struct PitsPromptInfo pits_prompt;
 +
 +static struct PitsInfo pits_frame_start;
++
++// the gems and keys carried from level to level
++struct PitsCarryInfo
++{
++  int gems[4];				// red, green, blue; yellow: 0 or 1
++  int keys[3];
++};
++
++static struct PitsCarryInfo carry_won;		// held when a level was last won
++static struct PitsCarryInfo carry_start;	// what the last level started with
++static int carry_mode = PITS_CARRY_NONE;
++
 +static jmp_buf ask_jump;
++
++static void UpdatePanel(void);
 +
 +// the typing room's keys
 +static char *room_keys[PITS_ROOM_ROWS] =
@@ -2884,6 +2903,39 @@ index 0000000..9111ec2
 +// starting a level
 +// ----------------------------------------------------------------------------
 +
++void SetLevelCarry_PITS(int mode)
++{
++  carry_mode = mode;
++}
++
++void RememberCarry_PITS(void)
++{
++  int i;
++
++  for (i = 0; i < 4; i++)
++    carry_won.gems[i] = pits.gems[i];
++  for (i = 0; i < 3; i++)
++    carry_won.keys[i] = pits.keys[i];
++}
++
++static void SetCarry(boolean same_level)
++{
++  int i;
++
++  if (carry_mode == PITS_CARRY_NEXT)
++    carry_start = carry_won;
++  else if (carry_mode != PITS_CARRY_RESTART || !same_level)
++    memset(&carry_start, 0, sizeof(carry_start));
++
++  for (i = 0; i < 4; i++)
++    pits.gems[i] = carry_start.gems[i];
++  for (i = 0; i < 3; i++)
++    pits.keys[i] = carry_start.keys[i];
++
++  // each start says anew how it starts
++  carry_mode = PITS_CARRY_NONE;
++}
++
 +void InitGameEngine_PITS(void)
 +{
 +  static char last_directory[1024] = "";
@@ -2907,6 +2959,7 @@ index 0000000..9111ec2
 +  memset(&pits_prompt, 0, sizeof(pits_prompt));
 +
 +  InitLevel_PITS();
++  SetCarry(same_level);
 +
 +  pits.frame = 0;
 +  pits.tick = 0;
@@ -2923,10 +2976,7 @@ index 0000000..9111ec2
 +
 +  game_pits.level_solved = FALSE;
 +  game_pits.game_over = FALSE;
-+  game_pits.moves = 0;
-+  game_pits.targets_still_needed = getTargetsStillNeeded_PITS();
-+  game_pits.gems = 0;
-+  game_pits.key[0] = game_pits.key[1] = game_pits.key[2] = FALSE;
++  UpdatePanel();
 +
 +  SnapshotView_PITS();
 +}
@@ -3167,8 +3217,13 @@ index 0000000..9111ec2
 +  game_pits.key[1] = (pits.keys[PITS_GREEN] > 0);
 +  game_pits.key[2] = (pits.keys[PITS_BLUE] > 0);
 +
-+  if (pits.won)
++  if (pits.won && !game_pits.level_solved)
++  {
++    // what the player holds now goes on to the next level
++    RememberCarry_PITS();
++
 +    game_pits.level_solved = TRUE;
++  }
 +}
 +
 +// ----------------------------------------------------------------------------
@@ -3480,10 +3535,10 @@ index 0000000..9111ec2
 +}
 diff --git a/src/game_pits/pits_main.h b/src/game_pits/pits_main.h
 new file mode 100644
-index 0000000..a83fea6
+index 0000000..47de607
 --- /dev/null
 +++ b/src/game_pits/pits_main.h
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,343 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -3797,6 +3852,7 @@ index 0000000..a83fea6
 +boolean ReadLevelFile_PITS(unsigned char *, int, struct PitsFileInfo *, boolean);
 +void ShowLevelText_PITS(char *);
 +void SnapshotView_PITS(void);
++void RememberCarry_PITS(void);
 +void getViewGeometry_PITS(int, int, int *, int *, int *, int *, int *, int *, int *);
 +void AnswerInput_PITS(char *);
 +void AnswerTarget_PITS(int *, int *);
