@@ -1,6 +1,6 @@
-From 421cb25fa491d78fb62f649de774b1e528ff9c61 Mon Sep 17 00:00:00 2001
+From ea9750f9a3a2644cf3817b60dba45b8772910a98 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 18:45:38 +0000
+Date: Wed, 28 Oct 2026 19:13:01 +0000
 Subject: [PATCH 3/3] Add The Puzzle Pits' level set
 
 Abe Pralle's 40 levels, with the game's pictures and sounds, as the game
@@ -9,62 +9,66 @@ Puzzle Pits engine ('filetype: PITS').
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- levels/The_Puzzle_Pits/CRACK.WAV      | Bin 0 -> 5204 bytes
- levels/The_Puzzle_Pits/GLASS.WAV      | Bin 0 -> 7400 bytes
- levels/The_Puzzle_Pits/LAVA.WAV       | Bin 0 -> 11144 bytes
- levels/The_Puzzle_Pits/LEVEL01.PIT    | Bin 0 -> 1984 bytes
- levels/The_Puzzle_Pits/LEVEL02.PIT    | Bin 0 -> 587 bytes
- levels/The_Puzzle_Pits/LEVEL03.PIT    | Bin 0 -> 799 bytes
- levels/The_Puzzle_Pits/LEVEL04.PIT    | Bin 0 -> 948 bytes
- levels/The_Puzzle_Pits/LEVEL05.PIT    | Bin 0 -> 1323 bytes
- levels/The_Puzzle_Pits/LEVEL06.PIT    | Bin 0 -> 795 bytes
- levels/The_Puzzle_Pits/LEVEL07.PIT    | Bin 0 -> 737 bytes
- levels/The_Puzzle_Pits/LEVEL08.PIT    | Bin 0 -> 681 bytes
- levels/The_Puzzle_Pits/LEVEL09.PIT    | Bin 0 -> 956 bytes
- levels/The_Puzzle_Pits/LEVEL10.PIT    | Bin 0 -> 1020 bytes
- levels/The_Puzzle_Pits/LEVEL11.PIT    | Bin 0 -> 714 bytes
- levels/The_Puzzle_Pits/LEVEL12.PIT    | Bin 0 -> 852 bytes
- levels/The_Puzzle_Pits/LEVEL13.PIT    | Bin 0 -> 1399 bytes
- levels/The_Puzzle_Pits/LEVEL14.PIT    | Bin 0 -> 896 bytes
- levels/The_Puzzle_Pits/LEVEL15.PIT    | Bin 0 -> 1156 bytes
- levels/The_Puzzle_Pits/LEVEL16.PIT    | Bin 0 -> 726 bytes
- levels/The_Puzzle_Pits/LEVEL17.PIT    | Bin 0 -> 957 bytes
- levels/The_Puzzle_Pits/LEVEL18.PIT    | Bin 0 -> 1022 bytes
- levels/The_Puzzle_Pits/LEVEL19.PIT    | Bin 0 -> 815 bytes
- levels/The_Puzzle_Pits/LEVEL20.PIT    | Bin 0 -> 718 bytes
- levels/The_Puzzle_Pits/LEVEL21.PIT    | Bin 0 -> 1159 bytes
- levels/The_Puzzle_Pits/LEVEL22.PIT    | Bin 0 -> 1453 bytes
- levels/The_Puzzle_Pits/LEVEL23.PIT    | Bin 0 -> 1056 bytes
- levels/The_Puzzle_Pits/LEVEL24.PIT    | Bin 0 -> 1206 bytes
- levels/The_Puzzle_Pits/LEVEL25.PIT    | Bin 0 -> 2384 bytes
- levels/The_Puzzle_Pits/LEVEL26.PIT    | Bin 0 -> 907 bytes
- levels/The_Puzzle_Pits/LEVEL27.PIT    | Bin 0 -> 1182 bytes
- levels/The_Puzzle_Pits/LEVEL28.PIT    | Bin 0 -> 520 bytes
- levels/The_Puzzle_Pits/LEVEL29.PIT    | Bin 0 -> 714 bytes
- levels/The_Puzzle_Pits/LEVEL30.PIT    | Bin 0 -> 1217 bytes
- levels/The_Puzzle_Pits/LEVEL31.PIT    | Bin 0 -> 872 bytes
- levels/The_Puzzle_Pits/LEVEL32.PIT    | Bin 0 -> 1019 bytes
- levels/The_Puzzle_Pits/LEVEL33.PIT    | Bin 0 -> 790 bytes
- levels/The_Puzzle_Pits/LEVEL34.PIT    | Bin 0 -> 579 bytes
- levels/The_Puzzle_Pits/LEVEL35.PIT    | Bin 0 -> 931 bytes
- levels/The_Puzzle_Pits/LEVEL36.PIT    | Bin 0 -> 663 bytes
- levels/The_Puzzle_Pits/LEVEL37.PIT    | Bin 0 -> 576 bytes
- levels/The_Puzzle_Pits/LEVEL38.PIT    | Bin 0 -> 767 bytes
- levels/The_Puzzle_Pits/LEVEL39.PIT    | Bin 0 -> 679 bytes
- levels/The_Puzzle_Pits/LEVEL40.PIT    | Bin 0 -> 2891 bytes
- levels/The_Puzzle_Pits/LICENSE        | 202 ++++++++++++++++++++++++++
- levels/The_Puzzle_Pits/MAGIC.WAV      | Bin 0 -> 11514 bytes
- levels/The_Puzzle_Pits/PLATEOFF.WAV   | Bin 0 -> 3114 bytes
- levels/The_Puzzle_Pits/PLATEON.WAV    | Bin 0 -> 844 bytes
- levels/The_Puzzle_Pits/README.txt     |   5 +
- levels/The_Puzzle_Pits/SCRAPE.WAV     | Bin 0 -> 4604 bytes
- levels/The_Puzzle_Pits/SPLINTER.WAV   | Bin 0 -> 6518 bytes
- levels/The_Puzzle_Pits/TILES1.DAT     | Bin 0 -> 57802 bytes
- levels/The_Puzzle_Pits/TILES2.DAT     | Bin 0 -> 55490 bytes
- levels/The_Puzzle_Pits/TILES3.DAT     | Bin 0 -> 49748 bytes
- levels/The_Puzzle_Pits/WATER.WAV      | Bin 0 -> 6110 bytes
- levels/The_Puzzle_Pits/levelinfo.conf |   8 +
- 55 files changed, 215 insertions(+)
+ levels/The_Puzzle_Pits/CRACK.WAV              | Bin 0 -> 5204 bytes
+ levels/The_Puzzle_Pits/GLASS.WAV              | Bin 0 -> 7400 bytes
+ levels/The_Puzzle_Pits/LAVA.WAV               | Bin 0 -> 11144 bytes
+ levels/The_Puzzle_Pits/LEVEL01.PIT            | Bin 0 -> 1984 bytes
+ levels/The_Puzzle_Pits/LEVEL02.PIT            | Bin 0 -> 587 bytes
+ levels/The_Puzzle_Pits/LEVEL03.PIT            | Bin 0 -> 799 bytes
+ levels/The_Puzzle_Pits/LEVEL04.PIT            | Bin 0 -> 948 bytes
+ levels/The_Puzzle_Pits/LEVEL05.PIT            | Bin 0 -> 1323 bytes
+ levels/The_Puzzle_Pits/LEVEL06.PIT            | Bin 0 -> 795 bytes
+ levels/The_Puzzle_Pits/LEVEL07.PIT            | Bin 0 -> 737 bytes
+ levels/The_Puzzle_Pits/LEVEL08.PIT            | Bin 0 -> 681 bytes
+ levels/The_Puzzle_Pits/LEVEL09.PIT            | Bin 0 -> 956 bytes
+ levels/The_Puzzle_Pits/LEVEL10.PIT            | Bin 0 -> 1020 bytes
+ levels/The_Puzzle_Pits/LEVEL11.PIT            | Bin 0 -> 714 bytes
+ levels/The_Puzzle_Pits/LEVEL12.PIT            | Bin 0 -> 852 bytes
+ levels/The_Puzzle_Pits/LEVEL13.PIT            | Bin 0 -> 1399 bytes
+ levels/The_Puzzle_Pits/LEVEL14.PIT            | Bin 0 -> 896 bytes
+ levels/The_Puzzle_Pits/LEVEL15.PIT            | Bin 0 -> 1156 bytes
+ levels/The_Puzzle_Pits/LEVEL16.PIT            | Bin 0 -> 726 bytes
+ levels/The_Puzzle_Pits/LEVEL17.PIT            | Bin 0 -> 957 bytes
+ levels/The_Puzzle_Pits/LEVEL18.PIT            | Bin 0 -> 1022 bytes
+ levels/The_Puzzle_Pits/LEVEL19.PIT            | Bin 0 -> 815 bytes
+ levels/The_Puzzle_Pits/LEVEL20.PIT            | Bin 0 -> 718 bytes
+ levels/The_Puzzle_Pits/LEVEL21.PIT            | Bin 0 -> 1159 bytes
+ levels/The_Puzzle_Pits/LEVEL22.PIT            | Bin 0 -> 1453 bytes
+ levels/The_Puzzle_Pits/LEVEL23.PIT            | Bin 0 -> 1056 bytes
+ levels/The_Puzzle_Pits/LEVEL24.PIT            | Bin 0 -> 1206 bytes
+ levels/The_Puzzle_Pits/LEVEL25.PIT            | Bin 0 -> 2384 bytes
+ levels/The_Puzzle_Pits/LEVEL26.PIT            | Bin 0 -> 907 bytes
+ levels/The_Puzzle_Pits/LEVEL27.PIT            | Bin 0 -> 1182 bytes
+ levels/The_Puzzle_Pits/LEVEL28.PIT            | Bin 0 -> 520 bytes
+ levels/The_Puzzle_Pits/LEVEL29.PIT            | Bin 0 -> 714 bytes
+ levels/The_Puzzle_Pits/LEVEL30.PIT            | Bin 0 -> 1217 bytes
+ levels/The_Puzzle_Pits/LEVEL31.PIT            | Bin 0 -> 872 bytes
+ levels/The_Puzzle_Pits/LEVEL32.PIT            | Bin 0 -> 1019 bytes
+ levels/The_Puzzle_Pits/LEVEL33.PIT            | Bin 0 -> 790 bytes
+ levels/The_Puzzle_Pits/LEVEL34.PIT            | Bin 0 -> 579 bytes
+ levels/The_Puzzle_Pits/LEVEL35.PIT            | Bin 0 -> 931 bytes
+ levels/The_Puzzle_Pits/LEVEL36.PIT            | Bin 0 -> 663 bytes
+ levels/The_Puzzle_Pits/LEVEL37.PIT            | Bin 0 -> 576 bytes
+ levels/The_Puzzle_Pits/LEVEL38.PIT            | Bin 0 -> 767 bytes
+ levels/The_Puzzle_Pits/LEVEL39.PIT            | Bin 0 -> 679 bytes
+ levels/The_Puzzle_Pits/LEVEL40.PIT            | Bin 0 -> 2891 bytes
+ levels/The_Puzzle_Pits/LICENSE                | 202 ++++++++++++++++++
+ levels/The_Puzzle_Pits/MAGIC.WAV              | Bin 0 -> 11514 bytes
+ levels/The_Puzzle_Pits/PLATEOFF.WAV           | Bin 0 -> 3114 bytes
+ levels/The_Puzzle_Pits/PLATEON.WAV            | Bin 0 -> 844 bytes
+ levels/The_Puzzle_Pits/README.txt             |   5 +
+ levels/The_Puzzle_Pits/SCRAPE.WAV             | Bin 0 -> 4604 bytes
+ levels/The_Puzzle_Pits/SPLINTER.WAV           | Bin 0 -> 6518 bytes
+ levels/The_Puzzle_Pits/TILES1.DAT             | Bin 0 -> 57802 bytes
+ levels/The_Puzzle_Pits/TILES2.DAT             | Bin 0 -> 55490 bytes
+ levels/The_Puzzle_Pits/TILES3.DAT             | Bin 0 -> 49748 bytes
+ levels/The_Puzzle_Pits/WATER.WAV              | Bin 0 -> 6110 bytes
+ .../graphics/graphicsinfo.conf                |  25 +++
+ .../graphics/pits_font_shadow.png             | Bin 0 -> 3241 bytes
+ .../graphics/pits_font_stone.png              | Bin 0 -> 3916 bytes
+ .../The_Puzzle_Pits/graphics/pits_stone.png   | Bin 0 -> 161 bytes
+ levels/The_Puzzle_Pits/levelinfo.conf         |   8 +
+ 59 files changed, 240 insertions(+)
  create mode 100644 levels/The_Puzzle_Pits/CRACK.WAV
  create mode 100644 levels/The_Puzzle_Pits/GLASS.WAV
  create mode 100644 levels/The_Puzzle_Pits/LAVA.WAV
@@ -119,6 +123,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  create mode 100644 levels/The_Puzzle_Pits/TILES2.DAT
  create mode 100644 levels/The_Puzzle_Pits/TILES3.DAT
  create mode 100644 levels/The_Puzzle_Pits/WATER.WAV
+ create mode 100644 levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
+ create mode 100644 levels/The_Puzzle_Pits/graphics/pits_font_shadow.png
+ create mode 100644 levels/The_Puzzle_Pits/graphics/pits_font_stone.png
+ create mode 100644 levels/The_Puzzle_Pits/graphics/pits_stone.png
  create mode 100644 levels/The_Puzzle_Pits/levelinfo.conf
 
 diff --git a/levels/The_Puzzle_Pits/CRACK.WAV b/levels/The_Puzzle_Pits/CRACK.WAV
@@ -3015,6 +3023,212 @@ zJw4svk;gW0qX6PX2nq5HWIPmH_JHylI60M+l!5>>*@EH<6p$s5fP%ObR6c^@6=XNG
 zcmYQlC?S=DT?I}`b)a+r3Qn+v;F1i?!XUt52MTjg7OSbLh5%5xT2WaEwxp^GoC86P
 zGH|?rMxil`f#f=HJRs!2#)9GzDg;fUNFrbfaQs2lf@}fj_S#xdwukrtqyUUTZmb23
 qC09esd8h+HxxcCkoTNca5QfNrd;^YsxEH`f=U{88Nq|EUVjut}(DJ+h
+
+literal 0
+HcmV?d00001
+
+diff --git a/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf b/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
+new file mode 100644
+index 0000000..c2b4c48
+--- /dev/null
++++ b/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
+@@ -0,0 +1,25 @@
++# The Puzzle Pits' own letters (made by tools/pitsfont.mjs from PLASMA1.FNT)
++
++# the scripts' text: engraved, on the game's grey stone
++font.envelope_1:                        pits_font_stone.png
++font.envelope_1.x:                      0
++font.envelope_1.y:                      0
++font.envelope_1.width:                  16
++font.envelope_1.height:                 18
++font.envelope_1.frames:                 95
++font.envelope_1.frames_per_line:        16
++
++background.envelope_1:                  pits_stone.png
++background.envelope_1.x:                0
++background.envelope_1.y:                0
++background.envelope_1.width:            48
++background.envelope_1.height:           54
++
++# on the pit (the typing room, the pointer): white with a shadow
++font.input_1:                           pits_font_shadow.png
++font.input_1.x:                         0
++font.input_1.y:                         0
++font.input_1.width:                     16
++font.input_1.height:                    18
++font.input_1.frames:                    95
++font.input_1.frames_per_line:           16
+diff --git a/levels/The_Puzzle_Pits/graphics/pits_font_shadow.png b/levels/The_Puzzle_Pits/graphics/pits_font_shadow.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd4d53740697a08b2e79995cc01d6288d7068cd7
+GIT binary patch
+literal 3241
+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
+Ps3+p->gTe~DWM4f?XX+k
+
+literal 0
+HcmV?d00001
+
+diff --git a/levels/The_Puzzle_Pits/graphics/pits_font_stone.png b/levels/The_Puzzle_Pits/graphics/pits_font_stone.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..2bba3eafbdc17365dec16cf3c3b039fa4b77a9e5
+GIT binary patch
+literal 3916
+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
+b&mRAuYt3bEHibPJ)LHg)^>bP0l+XkKGhxP&
+
+literal 0
+HcmV?d00001
+
+diff --git a/levels/The_Puzzle_Pits/graphics/pits_stone.png b/levels/The_Puzzle_Pits/graphics/pits_stone.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d936f2f25f6736fae257d14fbd3af9b0628bae9
+GIT binary patch
+literal 161
+zcmeAS@N?(olHy`uVBq!ia0y~yU@%}{U@+rgV_;xtjFy_kz`&5<>EaktG3V|1gPaWp
+z3@istW>32m(iJ4|#z8{qx5SR;Z*Nq`tIsO7YqR?lc_8Yw25Sas@IPn8@s)l2I~dzP
+XzL2v%Q^Uc)z`)??>gTe~DWM4fahWjC
 
 literal 0
 HcmV?d00001

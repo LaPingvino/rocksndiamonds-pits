@@ -1,6 +1,6 @@
-From 58267a2911f9bb85d6e6b076d1d326ccf4967e51 Mon Sep 17 00:00:00 2001
+From 593d3deb0d355f1c2a1c209430c13bea79ad79c2 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 18:45:26 +0000
+Date: Wed, 28 Oct 2026 19:13:00 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
 
 The Puzzle Pits (Abe Pralle, Plasma Works, 1995) is a Sokoban-like

@@ -1,24 +1,24 @@
-From e9352d88d03defe6b975ac102e8829610d08fbee Mon Sep 17 00:00:00 2001
+From 02c5db09f57111dca99ae000b01a3e40fccc423b Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Sun, 25 Oct 2026 21:16:50 +0000
+Date: Wed, 28 Oct 2026 19:13:00 +0000
 Subject: [PATCH 1/3] The Puzzle Pits engine's place in R'n'D: hooks and
  interface
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01T523s2LnR11HQaMAgNseiX
 ---
- src/Makefile                | 12 +++++-
+ src/Makefile                | 12 ++++-
  src/editor.c                |  1 +
- src/files.c                 | 83 +++++++++++++++++++++++++++++++++++++
- src/game.c                  | 65 +++++++++++++++++++++++++++++
+ src/files.c                 | 87 +++++++++++++++++++++++++++++++++++++
+ src/game.c                  | 69 +++++++++++++++++++++++++++++
  src/game.h                  |  2 +
- src/game_pits/Makefile      | 38 +++++++++++++++++
- src/game_pits/export_pits.h | 51 +++++++++++++++++++++++
- src/game_pits/game_pits.h   | 12 ++++++
- src/main.h                  |  7 +++-
+ src/game_pits/Makefile      | 38 ++++++++++++++++
+ src/game_pits/export_pits.h | 51 ++++++++++++++++++++++
+ src/game_pits/game_pits.h   | 12 +++++
+ src/main.h                  |  7 ++-
  src/screens.c               |  1 +
  src/tools.c                 | 10 +++++
- 11 files changed, 278 insertions(+), 4 deletions(-)
+ 11 files changed, 286 insertions(+), 4 deletions(-)
  create mode 100644 src/game_pits/Makefile
  create mode 100644 src/game_pits/export_pits.h
  create mode 100644 src/game_pits/game_pits.h
@@ -73,7 +73,7 @@ index 8f2b5b9..7a26f53 100644
    { -1,					NULL				}
  };
 diff --git a/src/files.c b/src/files.c
-index 81ab129..7f1b87a 100644
+index 81ab129..6ea2b94 100644
 --- a/src/files.c
 +++ b/src/files.c
 @@ -2268,6 +2268,7 @@ filetype_id_list[] =
@@ -95,7 +95,7 @@ index 81ab129..7f1b87a 100644
    // check for typical filename of a Sokoban level package file
    if (strSuffixLower(basename, ".xsb") &&
        strchr(basename, '%') == NULL)
-@@ -8625,6 +8630,77 @@ static void LoadLevelFromFileInfo_MM(struct LevelInfo *level,
+@@ -8625,6 +8630,81 @@ static void LoadLevelFromFileInfo_MM(struct LevelInfo *level,
      level->no_valid_file = TRUE;
  }
  
@@ -164,6 +164,10 @@ index 81ab129..7f1b87a 100644
 +  level->time = 0;
 +  level->gems_needed = 0;
 +
++  // high scores: the fewest moves (shown as steps)
++  level->use_step_counter = TRUE;
++  level->rate_time_over_score = TRUE;
++
 +  strncpy(level->name, level_pits->title, MAX_LEVEL_NAME_LEN);
 +  level->name[MAX_LEVEL_NAME_LEN] = '\0';
 +  strncpy(level->name_native, level_pits->title, MAX_LEVEL_NAME_LEN);
@@ -173,7 +177,7 @@ index 81ab129..7f1b87a 100644
  void CopyNativeLevel_RND_to_Native(struct LevelInfo *level)
  {
    if (level->game_engine_type == GAME_ENGINE_TYPE_BD)
-@@ -8647,6 +8723,8 @@ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
+@@ -8647,6 +8727,8 @@ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
      CopyNativeLevel_SP_to_RND(level);
    else if (level->game_engine_type == GAME_ENGINE_TYPE_MM)
      CopyNativeLevel_MM_to_RND(level);
@@ -182,7 +186,7 @@ index 81ab129..7f1b87a 100644
  }
  
  void SaveNativeLevel(struct LevelInfo *level)
-@@ -8725,6 +8803,11 @@ static void LoadLevelFromFileInfo(struct LevelInfo *level,
+@@ -8725,6 +8807,11 @@ static void LoadLevelFromFileInfo(struct LevelInfo *level,
        level->game_engine_type = GAME_ENGINE_TYPE_MM;
        break;
  
@@ -195,7 +199,7 @@ index 81ab129..7f1b87a 100644
        LoadLevelFromFileInfo_DC(level, level_file_info, level_info_only);
        break;
 diff --git a/src/game.c b/src/game.c
-index 4c594a8..7f5b8e0 100644
+index 4c594a8..479a87e 100644
 --- a/src/game.c
 +++ b/src/game.c
 @@ -2415,6 +2415,8 @@ int getPlayerInventorySize(int player_nr)
@@ -257,7 +261,18 @@ index 4c594a8..7f5b8e0 100644
    else
    {
      DrawLevel(REDRAW_FIELD);
-@@ -12539,6 +12556,18 @@ static void CheckLevelSolved(void)
+@@ -5476,6 +5493,10 @@ static void LevelSolved_SetFinalGameValues(void)
+                            level.use_step_counter ? TimePlayed :
+ 			   TimePlayed * FRAMES_PER_SECOND + TimeFrames);
+ 
++  // The Puzzle Pits: the moves made, as steps
++  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
++    game.time_final = game.score_time_final = game_pits.moves;
++
+   game.score_final = (level.game_engine_type == GAME_ENGINE_TYPE_BD ? game_bd.score :
+ 		      level.game_engine_type == GAME_ENGINE_TYPE_EM ? game_em.lev->score :
+ 		      level.game_engine_type == GAME_ENGINE_TYPE_MM ? game_mm.score :
+@@ -12539,6 +12560,18 @@ static void CheckLevelSolved(void)
      if (game_sp.game_over)				// game lost
        game.all_players_gone = TRUE;
    }
@@ -276,7 +291,7 @@ index 4c594a8..7f5b8e0 100644
    else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
    {
      if (game_mm.level_solved &&
-@@ -13087,6 +13116,10 @@ static void GameActionsExt(void)
+@@ -13087,6 +13120,10 @@ static void GameActionsExt(void)
    {
      GameActions_MM_Main();
    }
@@ -287,7 +302,7 @@ index 4c594a8..7f5b8e0 100644
    else
    {
      GameActions_RND_Main();
-@@ -13183,6 +13216,36 @@ void GameActions_SP_Main(void)
+@@ -13183,6 +13220,36 @@ void GameActions_SP_Main(void)
    }
  }
  
@@ -324,7 +339,7 @@ index 4c594a8..7f5b8e0 100644
  void GameActions_MM_Main(void)
  {
    AdvanceGfxFrame();
-@@ -17481,6 +17544,8 @@ boolean checkGameFailed(void)
+@@ -17481,6 +17548,8 @@ boolean checkGameFailed(void)
      return (game_sp.game_over && !game_sp.level_solved);
    else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
      return (game_mm.game_over && !game_mm.level_solved);
