@@ -25,10 +25,36 @@ Choose the level set *The Puzzle Pits* (it is in `levels/The_Puzzle_Pits`). A le
 
 A script's text shows in R'n'D's envelopes. When a script asks a question, a room of letter keys opens: walk to a letter and snap to type it, then walk onto OK. When it asks for a square, move the frame and snap.
 
+## Editing levels
+
+R'n'D's level editor opens a Puzzle Pits level as the game shows it, from above: each square is one element, its ground and what stands on it (a crate on a red target, a barrel in water ...), named in the editor. Draw with them, and *Test* plays the pit in the Puzzle Pits engine, with its scripts.
+
+*Save* writes the level back into its own `.PIT` file: the squares new, its title, password and scripts as they were. The installed level set is read-only; to change its levels, copy its folder into your own levels folder (`~/.rocksndiamonds/levels/`), and set `readonly: false` in the copy's `levelinfo.conf`. (`levels/The_Puzzle_Pits/template.level`, `editorsetup.conf` and the pictures in `graphics/` give the editor its elements; `src/game_pits_elements.inc` says which is which. They are made by `tools/rndset.mjs` in The Puzzle Pits' repository.)
+
+Scripts aren't edited here. Write them in [the Puzzle Pits level editor](https://lapingvino.github.io/The-Puzzle-Pits/editor/), or as text: `tools/pitscripts.mjs` in The Puzzle Pits' repository writes a level's scripts as a text file, and puts such a file into a level saved from R'n'D:
+
+```sh
+node tools/pitscripts.mjs LEVEL01.PIT > LEVEL01.pits      # the scripts as text
+node tools/pitscripts.mjs LEVEL01.PIT LEVEL01.pits        # and into the level
+```
+
+The text has the title and password, then each script: `script <number> "<name>"`, `at x,y ...` (the squares it runs on), and its statements, one a line, indented:
+
+```
+title: "Starting Out"
+password: "First"
+
+script 1 "GemPlate"
+at 2,2
+	SWITCHON
+	  IF EQ OVER(XPOS, YPOS) 29
+	  ...
+```
+
 ## What changed in R'n'D
 
 - `src/game_pits/`: the engine.
-- Hooks, as for the other engines: `src/main.h` (`LEVEL_FILE_TYPE_PITS`, `GAME_ENGINE_TYPE_PITS`), `src/files.c` (loading `.pit` files and level sets with `filetype: PITS`; R'n'D's own copy of a level, for its preview and editor), `src/game.c` (start, a frame, the end; the panel; text in envelopes), `src/tools.c` (drawing), `src/editor.c` and `src/screens.c` (the engine's name), the Makefiles.
+- Hooks, as for the other engines: `src/main.h` (`LEVEL_FILE_TYPE_PITS`, `GAME_ENGINE_TYPE_PITS`), `src/files.c` (loading `.pit` files and level sets with `filetype: PITS`; a level as R'n'D's elements, for its preview and editor, and back), `src/game.c` (start, a frame, the end; the panel; text in envelopes), `src/tools.c` (drawing), `src/editor.c` (the engine's name; its elements in the editor, saving `.PIT` files), `src/screens.c` (the engine's name), the Makefiles.
 - `levels/The_Puzzle_Pits`: the game's 40 levels, pictures and sounds.
 
 The same as patches against R'n'D 4.4.2.4, in [`patches/`](patches) (`git am patches/*.patch`):

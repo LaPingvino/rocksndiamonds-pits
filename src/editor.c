@@ -8646,6 +8646,33 @@ static void ReinitializeElementList_EnableSections(void)
     setup_editor_el_mirror_magic	= FALSE;
     setup_editor_el_deflektor		= FALSE;
   }
+  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+  {
+    // a Puzzle Pits level: the squares of a pit, as its level set lists
+    // them (editorsetup.conf: custom elements, the ground and what stands
+    // on it), whatever the editor setup
+    setup_editor_el_players		= FALSE;
+    setup_editor_el_boulderdash		= FALSE;
+    setup_editor_el_boulderdash_native	= FALSE;
+    setup_editor_el_boulderdash_effects	= FALSE;
+    setup_editor_el_boulderdash_scanned	= FALSE;
+    setup_editor_el_boulderdash_krissz	= FALSE;
+    setup_editor_el_emerald_mine	= FALSE;
+    setup_editor_el_emerald_mine_club	= FALSE;
+    setup_editor_el_more		= FALSE;
+    setup_editor_el_sokoban		= FALSE;
+    setup_editor_el_supaplex		= FALSE;
+    setup_editor_el_diamond_caves	= FALSE;
+    setup_editor_el_dx_boulderdash	= FALSE;
+    setup_editor_el_mirror_magic	= FALSE;
+    setup_editor_el_deflektor		= FALSE;
+    setup_editor_el_chars		= FALSE;
+    setup_editor_el_steel_chars		= FALSE;
+    setup_editor_el_custom		= FALSE;
+    setup_editor_el_dynamic		= FALSE;
+
+    setup_editor_el_user_defined	= TRUE;
+  }
   else if (level.game_engine_type == GAME_ENGINE_TYPE_BD)
   {
     setup_editor_el_players		= FALSE;
@@ -8760,6 +8787,19 @@ static void ReinitializeElementList(void)
     }
 
     initialization_needed = FALSE;
+  }
+
+  // a Puzzle Pits level: its squares (the user defined list) unfolded
+  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+  {
+    for (i = 0; editor_elements_info[i].setup_value != NULL; i++)
+    {
+      int *cascade_element = &(*editor_elements_info[i].headline_list)[0];
+
+      if (editor_elements_info[i].setup_value == &setup_editor_el_user_defined &&
+	  IS_EDITOR_CASCADE(*cascade_element))
+	*cascade_element = EL_CASCADE_ACTIVE(*cascade_element);
+    }
   }
 
   checked_free(editor_elements);
@@ -18951,6 +18991,23 @@ static void HandleControlButtons(struct GadgetInfo *gi)
       int level_nr_former = level_nr;
       char *level_filename;
       boolean new_level;
+
+      // a Puzzle Pits level: saved as the game's own level file, its
+      // scripts kept (R'n'D's own level files can't hold it)
+      if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+      {
+	if (leveldir_current->readonly)
+	{
+	  Request("This level set is read-only! Copy its folder into your own levels folder to change its levels.", REQ_CONFIRM);
+	  break;
+	}
+
+	CopyPlayfield(Tile, level.field);
+	SaveNativeLevel(&level);
+	level.changed = FALSE;
+
+	break;
+      }
 
       if (leveldir_current->readonly && !PrepareSavingIntoPersonalLevelSet())
 	break;

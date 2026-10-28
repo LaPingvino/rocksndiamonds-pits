@@ -8642,40 +8642,70 @@ static void LoadLevelFromFileInfo_PITS(struct LevelInfo *level,
     level->no_valid_file = TRUE;
 }
 
-// the pit in R'n'D's elements, for its preview and the level editor
+// the pit in R'n'D's elements, for its preview and its level editor: the
+// level set's custom elements (its template.level and artwork), one for
+// each ground and what stands on it, and back
+static const struct { int element, under, over; } pits_elements[] =
+{
+#include "game_pits_elements.inc"
+};
+
 static int map_tile_PITS_to_RND(int under, int over)
 {
-  if (over == 100)
-    return EL_PLAYER_1;
+  int i;
 
+  // as the editor knows them: a box at home is one; lava cooling, lava; a
+  // plate down, a plate
   if (over > 0 && over < 53)
+    over -= (over - 1) % 4;
+  if (under == 59)
+    under = 58;
+  if (under == 92 || under == 96)
+    under = 88;
+
+  if (under == 0 && over == 0)
+    return EL_EMPTY;				// the void
+
+  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
+    if (pits_elements[i].under == under && pits_elements[i].over == over)
+      return pits_elements[i].element;
+
+  // what isn't one: what stands there (on floor or, a wall, on nothing),
+  // else the ground alone
+  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
+    if (over != 0 && (pits_elements[i].under == 53 || pits_elements[i].under == 0) &&
+	pits_elements[i].over == over)
+      return pits_elements[i].element;
+  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
+    if (pits_elements[i].under == under && pits_elements[i].over == 0)
+      return pits_elements[i].element;
+
+  return EL_EMPTY;
+}
+
+static void map_tile_RND_to_PITS(int element, int *under, int *over)
+{
+  int i;
+
+  *under = *over = 0;				// the void (R'n'D's empty space)
+
+  if (IS_PLAYER_ELEMENT(element))
   {
-    switch (over - (over - 1) % 4)
-    {
-      case 33: case 41: case 49:	return EL_SOKOBAN_FIELD_FULL;	// each on its target
-      case 21: case 25: case 29:
-      case 37: case 45:			return EL_SOKOBAN_OBJECT;
-      default:				return EL_STEELWALL;
-    }
+    *under = 53;
+    *over = 100;
+    return;
   }
 
-  switch (under)
-  {
-    case 54: case 55: case 56:		return EL_SOKOBAN_FIELD_EMPTY;
-    case 60:				return EL_SP_PORT_UP;
-    case 61:				return EL_SP_PORT_RIGHT;
-    case 62:				return EL_SP_PORT_DOWN;
-    case 63:				return EL_SP_PORT_LEFT;
-    case 64:				return EL_EMERALD_RED;
-    case 65:				return EL_EMERALD;
-    case 66:				return EL_EMERALD_PURPLE;
-    case 67:				return EL_EMERALD_YELLOW;
-    case 68: case 69: case 70:		return EL_KEY_1 + under - 68;
-    case 76: case 77: case 78:		return EL_GATE_1 + under - 76;
-    case 83: case 84: case 88:
-    case 92: case 96:			return EL_ACID;
-    default:				return EL_EMPTY;
-  }
+  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
+    if (pits_elements[i].element == element)
+    {
+      *under = pits_elements[i].under;
+      *over = pits_elements[i].over;
+      return;
+    }
+
+  if (element != EL_EMPTY)
+    *under = 53;				// anything else: floor
 }
 
 static void CopyNativeLevel_PITS_to_RND(struct LevelInfo *level)
@@ -8699,10 +8729,136 @@ static void CopyNativeLevel_PITS_to_RND(struct LevelInfo *level)
   level->use_step_counter = TRUE;
   level->rate_time_over_score = TRUE;
 
+  // the elements' names (and rules) from the level set's template.level
+  level->use_custom_template = TRUE;
+
   strncpy(level->name, level_pits->title, MAX_LEVEL_NAME_LEN);
   level->name[MAX_LEVEL_NAME_LEN] = '\0';
   strncpy(level->name_native, level_pits->title, MAX_LEVEL_NAME_LEN);
   level->name_native[MAX_LEVEL_NAME_LEN] = '\0';
+}
+
+// the level file's maps (PIT-FORMAT.md): run-length coded, the inner
+// squares in the order under[x][y] has them in memory (x first)
+static int skipRunPITS(unsigned char *data, int size, int pos)
+{
+  int cell = 24;
+
+  while (cell < 505 && pos + 1 < size)
+  {
+    int n = data[pos];
+
+    pos += 2;
+    while (n-- > 0 && cell < PITS_SIZE * PITS_SIZE)
+      if ((++cell + 1) % PITS_SIZE == 0)
+	cell += 2;
+  }
+
+  return pos;
+}
+
+static int writeRunPITS(unsigned char *out, int map[PITS_SIZE][PITS_SIZE])
+{
+  int cells[PITS_SIZE * PITS_SIZE], num_cells = 0, len = 0, cell = 24, i;
+
+  while (cell < 505)
+  {
+    cells[num_cells++] = map[cell / PITS_SIZE][cell % PITS_SIZE];
+    if ((++cell + 1) % PITS_SIZE == 0)
+      cell += 2;
+  }
+
+  for (i = 0; i < num_cells;)
+  {
+    int n = 1;
+
+    while (i + n < num_cells && cells[i + n] == cells[i] && n < 255)
+      n++;
+    out[len++] = n;
+    out[len++] = cells[i];
+    i += n;
+  }
+
+  return len;
+}
+
+// the edited pit as its level file again: its title, password and scripts
+// as they were, the maps new
+static void CopyNativeLevel_RND_to_PITS(struct LevelInfo *level)
+{
+  struct LevelInfo_PITS *level_pits = &native_pits_level;
+  unsigned char *old = level_pits->file, *new;
+  int size = level_pits->file_size, pos, len, x, y;
+  static int old_under[PITS_SIZE][PITS_SIZE], old_over[PITS_SIZE][PITS_SIZE];
+
+  memcpy(old_under, level_pits->under, sizeof(old_under));
+  memcpy(old_over, level_pits->over, sizeof(old_over));
+
+  for (x = 0; x < PITS_SIZE; x++)
+    for (y = 0; y < PITS_SIZE; y++)
+      level_pits->under[x][y] = level_pits->over[x][y] = 0;
+
+  for (x = 0; x < MIN(level->fieldx, PITS_SIZE - 2); x++)
+  {
+    for (y = 0; y < MIN(level->fieldy, PITS_SIZE - 2); y++)
+    {
+      int *under = &level_pits->under[x + 1][y + 1];
+      int *over = &level_pits->over[x + 1][y + 1];
+
+      // a square as it was: exactly as it was (its ground under the player,
+      // a plate down ...)
+      if (level->field[x][y] == map_tile_PITS_to_RND(old_under[x + 1][y + 1],
+						     old_over[x + 1][y + 1]))
+      {
+	*under = old_under[x + 1][y + 1];
+	*over = old_over[x + 1][y + 1];
+      }
+      else
+	map_tile_RND_to_PITS(level->field[x][y], under, over);
+    }
+  }
+
+  if (size < 2)
+    return;
+
+  // the header as it was: the magic word, the password, the title
+  pos = 2;
+  pos += 2 + (((old[pos] << 8) | old[pos + 1]) ^ 22);
+  pos += 2 + (((old[pos] << 8) | old[pos + 1]) ^ 22);
+  if (pos > size)
+    return;
+
+  new = checked_malloc(PITS_MAX_FILE_SIZE);
+  memcpy(new, old, pos);
+  len = pos;
+  len += writeRunPITS(new + len, level_pits->under);
+  len += writeRunPITS(new + len, level_pits->over);
+
+  // the rest (the scripts) as it was
+  pos = skipRunPITS(old, size, skipRunPITS(old, size, pos));
+  if (len + size - pos <= PITS_MAX_FILE_SIZE)
+  {
+    memcpy(new + len, old + pos, size - pos);
+    len += size - pos;
+    memcpy(level_pits->file, new, len);
+    level_pits->file_size = len;
+  }
+
+  checked_free(new);
+}
+
+static boolean SaveNativeLevel_PITS(char *filename)
+{
+  FILE *file = fopen(filename, "wb");
+  boolean success;
+
+  if (file == NULL)
+    return FALSE;
+
+  success = (fwrite(native_pits_level.file, 1, native_pits_level.file_size, file) ==
+	     (size_t)native_pits_level.file_size);
+
+  return (fclose(file) == 0 && success);
 }
 
 void CopyNativeLevel_RND_to_Native(struct LevelInfo *level)
@@ -8715,6 +8871,8 @@ void CopyNativeLevel_RND_to_Native(struct LevelInfo *level)
     CopyNativeLevel_RND_to_SP(level);
   else if (level->game_engine_type == GAME_ENGINE_TYPE_MM)
     CopyNativeLevel_RND_to_MM(level);
+  else if (level->game_engine_type == GAME_ENGINE_TYPE_PITS)
+    CopyNativeLevel_RND_to_PITS(level);
 }
 
 void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
@@ -8733,6 +8891,19 @@ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
 
 void SaveNativeLevel(struct LevelInfo *level)
 {
+  // a Puzzle Pits level: back into its own file
+  if (level->game_engine_type == GAME_ENGINE_TYPE_PITS)
+  {
+    CopyNativeLevel_RND_to_PITS(level);
+
+    if (SaveNativeLevel_PITS(level->file_info.filename))
+      Request("Native level file saved!", REQ_CONFIRM);
+    else
+      Request("Failed to save native level file!", REQ_CONFIRM);
+
+    return;
+  }
+
   // saving native level files only supported for some game engines
   if (level->game_engine_type != GAME_ENGINE_TYPE_BD &&
       level->game_engine_type != GAME_ENGINE_TYPE_SP)
