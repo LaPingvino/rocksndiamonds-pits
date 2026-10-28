@@ -311,6 +311,7 @@ extern struct PitsPromptInfo pits_prompt;
 boolean ReadLevelFile_PITS(unsigned char *, int, struct PitsFileInfo *, boolean);
 void ShowLevelText_PITS(char *);
 void SnapshotView_PITS(void);
+void RememberCarry_PITS(void);
 void getViewGeometry_PITS(int, int, int *, int *, int *, int *, int *, int *, int *);
 void AnswerInput_PITS(char *);
 void AnswerTarget_PITS(int *, int *);

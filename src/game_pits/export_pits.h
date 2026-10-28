@@ -12,6 +12,11 @@
 #define PITS_PASSWORD_LEN		20
 #define PITS_MAX_FILE_SIZE		65536
 
+// what gems and keys a level starts with (SetLevelCarry_PITS)
+#define PITS_CARRY_NONE			0	// none (a level started on its own)
+#define PITS_CARRY_NEXT			1	// those held when a level was last won
+#define PITS_CARRY_RESTART		2	// those this level started with last time
+
 struct GameInfo_PITS
 {
   boolean level_solved;
@@ -40,6 +45,7 @@ extern struct LevelInfo_PITS native_pits_level;
 void setLevelInfoToDefaults_PITS(void);
 boolean LoadNativeLevel_PITS(char *, boolean);
 
+void SetLevelCarry_PITS(int);		// just before InitGameEngine_PITS()
 void InitGameEngine_PITS(void);
 void GameActions_PITS(byte[MAX_PLAYERS], struct MouseActionInfo);
 void RedrawPlayfield_PITS(boolean);

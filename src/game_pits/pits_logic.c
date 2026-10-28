@@ -898,6 +898,11 @@ void Wait_PITS(void)
 {
   pits.pushing = FALSE;
 
+  // waiting makes the player's own square their last square (scripts take
+  // LASTX, LASTY being the player's position as "the player waited")
+  pits.lastx = pits.px;
+  pits.lasty = pits.py;
+
   TurnChecks_PITS();
 
   pits.moves++;

@@ -27,7 +27,21 @@ struct PitsViewInfo pits_view;
 struct PitsPromptInfo pits_prompt;
 
 static struct PitsInfo pits_frame_start;
+
+// the gems and keys carried from level to level
+struct PitsCarryInfo
+{
+  int gems[4];				// red, green, blue; yellow: 0 or 1
+  int keys[3];
+};
+
+static struct PitsCarryInfo carry_won;		// held when a level was last won
+static struct PitsCarryInfo carry_start;	// what the last level started with
+static int carry_mode = PITS_CARRY_NONE;
+
 static jmp_buf ask_jump;
+
+static void UpdatePanel(void);
 
 // the typing room's keys
 static char *room_keys[PITS_ROOM_ROWS] =
@@ -421,6 +435,39 @@ void SnapshotView_PITS(void)
 // starting a level
 // ----------------------------------------------------------------------------
 
+void SetLevelCarry_PITS(int mode)
+{
+  carry_mode = mode;
+}
+
+void RememberCarry_PITS(void)
+{
+  int i;
+
+  for (i = 0; i < 4; i++)
+    carry_won.gems[i] = pits.gems[i];
+  for (i = 0; i < 3; i++)
+    carry_won.keys[i] = pits.keys[i];
+}
+
+static void SetCarry(boolean same_level)
+{
+  int i;
+
+  if (carry_mode == PITS_CARRY_NEXT)
+    carry_start = carry_won;
+  else if (carry_mode != PITS_CARRY_RESTART || !same_level)
+    memset(&carry_start, 0, sizeof(carry_start));
+
+  for (i = 0; i < 4; i++)
+    pits.gems[i] = carry_start.gems[i];
+  for (i = 0; i < 3; i++)
+    pits.keys[i] = carry_start.keys[i];
+
+  // each start says anew how it starts
+  carry_mode = PITS_CARRY_NONE;
+}
+
 void InitGameEngine_PITS(void)
 {
   static char last_directory[1024] = "";
@@ -444,6 +491,7 @@ void InitGameEngine_PITS(void)
   memset(&pits_prompt, 0, sizeof(pits_prompt));
 
   InitLevel_PITS();
+  SetCarry(same_level);
 
   pits.frame = 0;
   pits.tick = 0;
@@ -460,10 +508,7 @@ void InitGameEngine_PITS(void)
 
   game_pits.level_solved = FALSE;
   game_pits.game_over = FALSE;
-  game_pits.moves = 0;
-  game_pits.targets_still_needed = getTargetsStillNeeded_PITS();
-  game_pits.gems = 0;
-  game_pits.key[0] = game_pits.key[1] = game_pits.key[2] = FALSE;
+  UpdatePanel();
 
   SnapshotView_PITS();
 }
@@ -704,8 +749,13 @@ static void UpdatePanel(void)
   game_pits.key[1] = (pits.keys[PITS_GREEN] > 0);
   game_pits.key[2] = (pits.keys[PITS_BLUE] > 0);
 
-  if (pits.won)
+  if (pits.won && !game_pits.level_solved)
+  {
+    // what the player holds now goes on to the next level
+    RememberCarry_PITS();
+
     game_pits.level_solved = TRUE;
+  }
 }
 
 // ----------------------------------------------------------------------------

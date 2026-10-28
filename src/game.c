@@ -4162,6 +4162,32 @@ static boolean checkCloseGamePanelDoor(boolean restarting)
   return TRUE;
 }
 
+// The Puzzle Pits: gems and keys go on from a level won into the next one
+// of the set; the same level again gets what it started with; any other
+// level, started on its own, none (as in the game: password, chosen level)
+static boolean pits_carry_won = FALSE;
+
+static int getLevelCarry_PITS(void)
+{
+  static char *last_set = NULL;
+  static int last_level = -1;
+  int mode = PITS_CARRY_NONE;
+
+  if (last_set != NULL && strEqual(last_set, leveldir_current->identifier))
+  {
+    if (level_nr == last_level)
+      mode = PITS_CARRY_RESTART;
+    else if (level_nr == last_level + 1 && pits_carry_won)
+      mode = PITS_CARRY_NEXT;
+  }
+
+  setString(&last_set, leveldir_current->identifier);
+  last_level = level_nr;
+  pits_carry_won = FALSE;
+
+  return mode;
+}
+
 void InitGame(void)
 {
   static int last_level_nr = -1;
@@ -5143,6 +5169,7 @@ void InitGame(void)
   }
   else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
   {
+    SetLevelCarry_PITS(getLevelCarry_PITS());
     InitGameEngine_PITS();
   }
   else
@@ -12567,6 +12594,7 @@ static void CheckLevelSolved(void)
     {
       // as the game shows it, before going on (without the level's
       // password: R'n'D has its own way to go to a level)
+      pits_carry_won = TRUE;
       ShowText_PITS("Level Complete!");
 
       LevelSolved();
