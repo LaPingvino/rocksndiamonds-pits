@@ -8695,6 +8695,10 @@ static void CopyNativeLevel_PITS_to_RND(struct LevelInfo *level)
   level->time = 0;
   level->gems_needed = 0;
 
+  // high scores: the fewest moves (shown as steps)
+  level->use_step_counter = TRUE;
+  level->rate_time_over_score = TRUE;
+
   strncpy(level->name, level_pits->title, MAX_LEVEL_NAME_LEN);
   level->name[MAX_LEVEL_NAME_LEN] = '\0';
   strncpy(level->name_native, level_pits->title, MAX_LEVEL_NAME_LEN);

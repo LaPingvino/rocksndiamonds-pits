@@ -5493,6 +5493,10 @@ static void LevelSolved_SetFinalGameValues(void)
                            level.use_step_counter ? TimePlayed :
 			   TimePlayed * FRAMES_PER_SECOND + TimeFrames);
 
+  // The Puzzle Pits: the moves made, as steps
+  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
+    game.time_final = game.score_time_final = game_pits.moves;
+
   game.score_final = (level.game_engine_type == GAME_ENGINE_TYPE_BD ? game_bd.score :
 		      level.game_engine_type == GAME_ENGINE_TYPE_EM ? game_em.lev->score :
 		      level.game_engine_type == GAME_ENGINE_TYPE_MM ? game_mm.score :
