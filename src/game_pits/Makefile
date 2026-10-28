@@ -23,6 +23,9 @@ $(GAME_PITS): $(OBJS)
 .c.o:
 	$(CC) $(PROFILING) $(CFLAGS) -funsigned-char -c $*.c
 
+# the engine's own headers: all its files use them
+$(OBJS): pits_main.h export_pits.h game_pits.h
+
 clean:
 	$(RM) $(OBJS)
 	$(RM) $(GAME_PITS)
