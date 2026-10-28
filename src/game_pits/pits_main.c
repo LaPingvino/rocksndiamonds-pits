@@ -7,6 +7,8 @@
 // pits_main.c: the level files, and the game as R'n'D runs it
 // ============================================================================
 
+#include <setjmp.h>
+
 #include "pits_main.h"
 
 
@@ -22,6 +24,19 @@ struct LevelInfo_PITS native_pits_level;
 
 struct PitsInfo pits;
 struct PitsViewInfo pits_view;
+struct PitsPromptInfo pits_prompt;
+
+static struct PitsInfo pits_frame_start;
+static jmp_buf ask_jump;
+
+// the typing room's keys
+static char *room_keys[PITS_ROOM_ROWS] =
+{
+  "1234567890",
+  "QWERTYUIOP",
+  "ASDFGHJKL<",
+  "ZXCVBNM >>",
+};
 
 static boolean quiet_text = FALSE;
 
@@ -275,8 +290,13 @@ static void ShowPage(char *page, int *num_lines)
   while (len > 0 && page[len - 1] == '\n')
     page[--len] = '\0';
 
-  if (len > 0)
+  // a frame played again doesn't show its pages again
+  if (len > 0 && ++pits_prompt.page_counter > pits_prompt.pages_shown)
+  {
+    pits_prompt.pages_shown = pits_prompt.page_counter;
+
     ShowText_PITS(page);
+  }
 
   page[0] = '\0';
   *num_lines = 0;
@@ -420,6 +440,8 @@ void InitGameEngine_PITS(void)
 
   memset(&pits, 0, sizeof(pits));
   pits.file = file;
+
+  memset(&pits_prompt, 0, sizeof(pits_prompt));
 
   InitLevel_PITS();
 
@@ -597,12 +619,6 @@ static void HandleInput(int action, struct MouseActionInfo mouse)
     pits.bump_ready = TRUE;
   }
 
-  if (button && PITS_IN_PIT(mx, my))
-  {
-    pits.target_x = mx;
-    pits.target_y = my;
-  }
-
   // a gem (snap) or a key (drop) with a direction
   if ((snap || drop) && dir != PITS_NO_DIR)
   {
@@ -692,8 +708,225 @@ static void UpdatePanel(void)
     game_pits.level_solved = TRUE;
 }
 
-void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
+// ----------------------------------------------------------------------------
+// a script asking the player: the typing room (INPUT), the cursor (TARGET)
+// ----------------------------------------------------------------------------
+
+int getRoomKey_PITS(int x, int y)
 {
+  if (x < 0 || x >= PITS_ROOM_COLS || y < 0 || y >= PITS_ROOM_ROWS)
+    return 0;
+
+  return room_keys[y][x];
+}
+
+static void Ask(int mode)
+{
+  pits_prompt.mode = mode;
+
+  longjmp(ask_jump, 1);
+}
+
+void AnswerInput_PITS(char *input)
+{
+  if (pits_prompt.next_answer < pits_prompt.num_answers)
+  {
+    strcpy(input, pits_prompt.answer_text[pits_prompt.next_answer++]);
+
+    return;
+  }
+
+  pits_prompt.typed[0] = '\0';
+  pits_prompt.cx = 7;			// on the space, next to "done"
+  pits_prompt.cy = PITS_ROOM_ROWS - 1;
+  pits_prompt.facing = PITS_NORTH * 4;
+
+  Ask(PITS_PROMPT_INPUT);
+}
+
+void AnswerTarget_PITS(int *x, int *y)
+{
+  if (pits_prompt.next_answer < pits_prompt.num_answers)
+  {
+    *x = pits_prompt.answer_x[pits_prompt.next_answer];
+    *y = pits_prompt.answer_y[pits_prompt.next_answer];
+    pits_prompt.next_answer++;
+
+    return;
+  }
+
+  pits_prompt.cx = pits.px;
+  pits_prompt.cy = pits.py;
+
+  Ask(PITS_PROMPT_TARGET);
+}
+
+static void Answer(void)
+{
+  int nr = pits_prompt.num_answers;
+
+  if (nr < PITS_MAX_ANSWERS)
+  {
+    strcpy(pits_prompt.answer_text[nr], pits_prompt.typed);
+    pits_prompt.answer_x[nr] = pits_prompt.cx;
+    pits_prompt.answer_y[nr] = pits_prompt.cy;
+    pits_prompt.num_answers++;
+  }
+
+  pits_prompt.mode = PITS_PROMPT_NONE;
+  pits_prompt.wait_release = TRUE;
+}
+
+static void TypeKey(int key)
+{
+  int len = strlen(pits_prompt.typed);
+
+  if (key == PITS_KEY_DONE)
+  {
+    Answer();
+  }
+  else if (key == PITS_KEY_RUBOUT)
+  {
+    if (len > 0)
+      pits_prompt.typed[len - 1] = '\0';
+  }
+  else if (key != 0 && len < PITS_INPUT_LEN)
+  {
+    pits_prompt.typed[len] = key;
+    pits_prompt.typed[len + 1] = '\0';
+  }
+}
+
+static void HandlePrompt(int action, struct MouseActionInfo mouse)
+{
+  boolean input = (pits_prompt.mode == PITS_PROMPT_INPUT);
+  int dir = (action & MV_UP    ? PITS_NORTH :
+	     action & MV_RIGHT ? PITS_EAST :
+	     action & MV_DOWN  ? PITS_SOUTH :
+	     action & MV_LEFT  ? PITS_WEST : PITS_NO_DIR);
+  boolean snap = ((action & KEY_BUTTON_SNAP) != 0);
+  boolean new_action = (action != pits_prompt.last_action);
+  boolean new_button = (mouse.button != 0 && pits_prompt.last_button == 0);
+
+  pits_prompt.last_action = action;
+  pits_prompt.last_button = mouse.button;
+
+  // what was held when the question came is let go first
+  if (pits_prompt.wait_release)
+  {
+    if (action == 0 && mouse.button == 0)
+      pits_prompt.wait_release = FALSE;
+
+    return;
+  }
+
+  // a click: that key, or that square
+  if (new_button && mouse.button == MB_LEFTBUTTON)
+  {
+    int x = mouse.lx + (input ? 0 : 1);
+    int y = mouse.ly + (input ? 0 : 1);
+
+    if (input && getRoomKey_PITS(x, y) != 0)
+    {
+      pits_prompt.cx = x;
+      pits_prompt.cy = y;
+
+      TypeKey(getRoomKey_PITS(x, y));
+    }
+    else if (!input && PITS_IN_PIT(x, y))
+    {
+      pits_prompt.cx = x;
+      pits_prompt.cy = y;
+
+      Answer();
+    }
+
+    return;
+  }
+
+  if (snap && dir == PITS_NO_DIR)
+  {
+    if (new_action)
+    {
+      if (input)
+	TypeKey(getRoomKey_PITS(pits_prompt.cx, pits_prompt.cy));
+      else
+	Answer();
+    }
+
+    return;
+  }
+
+  if (dir == PITS_NO_DIR)
+  {
+    pits_prompt.hold_frames = 0;
+
+    return;
+  }
+
+  // a direction: a square at once, then at the pace of turns
+  if (!new_action && ++pits_prompt.hold_frames < 8)
+    return;
+
+  pits_prompt.hold_frames = 0;
+
+  if (input)
+  {
+    static int dx[4] = { 0, 1, 0, -1 };
+    static int dy[4] = { -1, 0, 1, 0 };
+    int x = pits_prompt.cx + dx[dir];
+    int y = pits_prompt.cy + dy[dir];
+
+    pits_prompt.facing = dir * 4;
+
+    if (getRoomKey_PITS(x, y) == 0)
+      return;
+
+    pits_prompt.cx = x;
+    pits_prompt.cy = y;
+
+    // walking onto "done" answers
+    if (getRoomKey_PITS(x, y) == PITS_KEY_DONE &&
+	getRoomKey_PITS(x - dx[dir], y - dy[dir]) != PITS_KEY_DONE)
+      Answer();
+  }
+  else
+  {
+    int x = pits_prompt.cx + (dir == PITS_EAST ? 1 : dir == PITS_WEST ? -1 : 0);
+    int y = pits_prompt.cy + (dir == PITS_SOUTH ? 1 : dir == PITS_NORTH ? -1 : 0);
+
+    if (PITS_IN_PIT(x, y))
+    {
+      pits_prompt.cx = x;
+      pits_prompt.cy = y;
+    }
+  }
+}
+
+
+// a frame of the game; a script asking the player leaves it, and it is played
+// again from its start once the player has answered
+static void PlayFrame(int action, struct MouseActionInfo mouse)
+{
+  pits_frame_start = pits;
+  pits_prompt.next_answer = 0;
+  pits_prompt.page_counter = 0;
+
+  if (setjmp(ask_jump) != 0)
+  {
+    quiet_text = FALSE;
+    pits = pits_frame_start;
+
+    pits_prompt.frame_action = action;
+    pits_prompt.frame_mouse = mouse;
+    pits_prompt.last_action = action;
+    pits_prompt.last_button = mouse.button;
+    pits_prompt.hold_frames = 0;
+    pits_prompt.wait_release = TRUE;
+
+    return;
+  }
+
   pits.frame++;
   pits.tick = PITS_TICKS(pits.frame);
   pits.sounds = 0;
@@ -720,10 +953,10 @@ void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
     if (pits.change_dir != 0)
     {
       // a gem or key pressed while the change is shown acts after it
-      if (action[0] != pits.last_action &&
-	  (action[0] & (KEY_BUTTON_SNAP | KEY_BUTTON_DROP)) &&
-	  getDirFromAction(action[0]) != PITS_NO_DIR)
-	pits.pending_use = action[0];
+      if (action != pits.last_action &&
+	  (action & (KEY_BUTTON_SNAP | KEY_BUTTON_DROP)) &&
+	  getDirFromAction(action) != PITS_NO_DIR)
+	pits.pending_use = action;
 
       HandleChange();
 
@@ -737,15 +970,48 @@ void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
     }
     else
     {
-      HandleInput(action[0], mouse);
+      HandleInput(action, mouse);
     }
   }
 
-  pits.last_action = action[0];
+  pits.last_action = action;
   pits.last_button = mouse.button;
 
   UpdatePanel();
   SnapshotView_PITS();
 
   PlaySounds_PITS(pits.sounds);
+
+  // the frame is done: its answers are used
+  pits_prompt.num_answers = 0;
+  pits_prompt.pages_shown = 0;
+}
+
+void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
+{
+  struct MouseActionInfo no_mouse = { 0, 0, 0, 0 };
+
+  if (pits_prompt.mode != PITS_PROMPT_NONE)
+  {
+    HandlePrompt(action[0], mouse);
+
+    // answered: the frame that asked is played again
+    if (pits_prompt.mode == PITS_PROMPT_NONE)
+      PlayFrame(pits_prompt.frame_action, pits_prompt.frame_mouse);
+
+    return;
+  }
+
+  // after the room or the cursor, the pit waits until all is let go
+  if (pits_prompt.wait_release)
+  {
+    if (action[0] == 0 && mouse.button == 0)
+      pits_prompt.wait_release = FALSE;
+
+    PlayFrame(0, no_mouse);
+  }
+  else
+  {
+    PlayFrame(action[0], mouse);
+  }
 }

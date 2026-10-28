@@ -220,7 +220,6 @@ struct PitsInfo
   int last_action;
   int last_button;
 
-  int target_x, target_y;		// the last square clicked (TARGET)
 
   // changing to a ghost and back (pictures only, a stage every turn's time)
   int change_dir;			// +1 to a ghost, -1 back, 0 none
@@ -236,6 +235,47 @@ struct PitsInfo
   boolean show_all;
 
   int sounds;				// played after the pit is drawn
+};
+
+// a script asking the player (INPUT, TARGET): the frame it happened in is
+// played again from its start once the player has answered, with the answers
+#define PITS_PROMPT_NONE		0
+#define PITS_PROMPT_INPUT		1
+#define PITS_PROMPT_TARGET		2
+
+#define PITS_MAX_ANSWERS		16
+
+// the typing room: its keys, ten across and four down
+#define PITS_ROOM_COLS			10
+#define PITS_ROOM_ROWS			4
+#define PITS_KEY_SPACE			' '
+#define PITS_KEY_RUBOUT			'<'
+#define PITS_KEY_DONE			'>'
+
+struct PitsPromptInfo
+{
+  int mode;
+
+  int frame_action;			// the frame to play again
+  struct MouseActionInfo frame_mouse;
+
+  int num_answers;
+  int next_answer;
+  char answer_text[PITS_MAX_ANSWERS][PITS_INPUT_LEN + 1];
+  int answer_x[PITS_MAX_ANSWERS];
+  int answer_y[PITS_MAX_ANSWERS];
+
+  int pages_shown;			// text pages already shown in this frame
+  int page_counter;
+
+  int cx, cy;				// the cursor, or the player in the room
+  int facing;
+  char typed[PITS_INPUT_LEN + 1];
+
+  int last_action;
+  int last_button;
+  int hold_frames;
+  boolean wait_release;			// no input until all is let go
 };
 
 // what was shown last (REDRAW, APPEAR, and every frame between turns)
@@ -260,6 +300,7 @@ struct PitsViewInfo
 
 extern struct PitsInfo pits;
 extern struct PitsViewInfo pits_view;
+extern struct PitsPromptInfo pits_prompt;
 
 
 // ----------------------------------------------------------------------------
@@ -271,6 +312,9 @@ boolean ReadLevelFile_PITS(unsigned char *, int, struct PitsFileInfo *, boolean)
 void ShowLevelText_PITS(char *);
 void SnapshotView_PITS(void);
 void getViewGeometry_PITS(int, int, int *, int *, int *, int *, int *, int *, int *);
+void AnswerInput_PITS(char *);
+void AnswerTarget_PITS(int *, int *);
+int getRoomKey_PITS(int, int);
 
 // pits_logic.c
 void InitLevel_PITS(void);

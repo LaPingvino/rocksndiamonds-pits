@@ -1400,25 +1400,39 @@ static void ShowScriptText(int pc, int length)
   free(text);
 }
 
-// TARGET can't wait for the player: it takes the square last clicked,
-// or else the one the player faces
+// TARGET: the player points at a square (asked outside the frame, in
+// pits_main.c); its x and y, or 0, 0 if it isn't in the pit
 static void Target(void)
 {
-  int x = pits.target_x, y = pits.target_y;
+  int x, y;
 
-  if (!PITS_IN_PIT(x, y))
-  {
-    x = pits.px + dir_dx[pits.facing / 4];
-    y = pits.py + dir_dy[pits.facing / 4];
-  }
+  AnswerTarget_PITS(&x, &y);
 
   if (!PITS_IN_PIT(x, y))
     x = y = 0;
 
   pits.xpos = x;
   pits.ypos = y;
+}
 
-  pits.target_x = pits.target_y = 0;
+// INPUT: the line the player types, and the number it starts with
+static void Input(void)
+{
+  char *p = pits.input;
+  int sign = 1, value = 0;
+
+  AnswerInput_PITS(pits.input);
+
+  if (*p == '-')
+  {
+    sign = -1;
+    p++;
+  }
+
+  while (*p >= '0' && *p <= '9')
+    value = Word16(value * 10 + (*p++ - '0'));
+
+  pits.input_value = Word16(sign * value);
 }
 
 static boolean InputStartsWith(int pc, int length)
@@ -1705,11 +1719,7 @@ static void RunScript(int nr, boolean on, int x, int y)
 	pc += length;
 
 	if (command == CMD_INPUT)
-	{
-	  // the player can't type here: the line typed is empty
-	  pits.input[0] = '\0';
-	  pits.input_value = 0;
-	}
+	  Input();
 	break;
 
       default:

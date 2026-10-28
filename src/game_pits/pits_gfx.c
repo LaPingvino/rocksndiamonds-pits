@@ -9,6 +9,8 @@
 
 #include "pits_main.h"
 
+#include "../main.h"			// R'n'D's fonts, for the typing room
+
 
 #define MAX_SHAPES			400
 #define NUM_COLORS			64
@@ -52,6 +54,8 @@ static unsigned char palette[NUM_COLORS][3] =
   {  0,  2, 18 }, {  0,  0, 16 }, { 31, 18, 16 }, { 23, 10, 10 },
   { 16,  8,  0 }, { 14,  6,  0 }, { 12,  4,  0 }, { 10,  2,  0 },
 };
+
+static void getRoomGeometry(int *, int *, int *);
 
 static char *sound_names[PITS_NUM_SOUNDS] =
 {
@@ -355,6 +359,51 @@ static void DrawPit(int vx0, int vy0, int ox, int oy, int cols, int rows)
   }
 }
 
+// the typing room: floor squares with the keys, the player on one of them
+static void DrawRoom(void)
+{
+  int ox, oy, scale, square, x, y;
+
+  getRoomGeometry(&ox, &oy, &scale);
+  draw_scale = scale;
+  square = PITS_SQUARE * scale;
+
+  for (y = 0; y < PITS_ROOM_ROWS; y++)
+    for (x = 0; x < PITS_ROOM_COLS; x++)
+      DrawShape(PITS_U_FLOOR, ox + x * square, oy + y * square, FALSE);
+
+  // the player: an object over two by two squares, up and left
+  x = ox + pits_prompt.cx * square;
+  y = oy + pits_prompt.cy * square;
+
+  DrawShape(100 + pits_prompt.facing + 0, x - square, y - square, TRUE);
+  DrawShape(100 + pits_prompt.facing + 1, x,          y - square, TRUE);
+  DrawShape(100 + pits_prompt.facing + 2, x - square, y,          TRUE);
+  DrawShape(100 + pits_prompt.facing + 3, x,          y,          TRUE);
+}
+
+// the TARGET cursor: a frame on a square
+static void DrawFrame(int x, int y, int size)
+{
+  Uint32 color = colors[11];		// yellow
+  int width = 2 * draw_scale;
+  int i, j;
+
+  for (j = 0; j < size; j++)
+  {
+    for (i = 0; i < size; i++)
+    {
+      int xx = x + i, yy = y + j;
+
+      if (i >= width && i < size - width && j >= width && j < size - width)
+	continue;
+
+      if (xx >= 0 && xx < draw_width && yy >= 0 && yy < draw_height)
+	draw_pixels[yy * draw_pitch + xx] = color;
+    }
+  }
+}
+
 // the whole pit (the yellow gem), as small as it fits
 static void getWholePitGeometry(int *vx0, int *vy0, int *ox, int *oy,
 				int *cols, int *rows, int *scale)
@@ -370,10 +419,26 @@ static void getWholePitGeometry(int *vx0, int *vy0, int *ox, int *oy,
   *oy = (SYSIZE - PITS_SIZE * PITS_SQUARE * s) / 2;
 }
 
+// the typing room: its keys in the middle, the line typed above them
+static void getRoomGeometry(int *ox, int *oy, int *scale)
+{
+  int vx0, vy0, ox_pit, oy_pit, cols, rows;
+  int square;
+
+  getViewGeometry_PITS(0, 0, &vx0, &vy0, &ox_pit, &oy_pit, &cols, &rows, scale);
+
+  square = PITS_SQUARE * *scale;
+  *ox = (SXSIZE - PITS_ROOM_COLS * square) / 2;
+  *oy = (SYSIZE - PITS_ROOM_ROWS * square) / 2 + square / 2;
+}
+
 static void getShownGeometry(int *vx0, int *vy0, int *ox, int *oy,
 			     int *cols, int *rows, int *scale)
 {
-  if (pits_view.show_all)
+  if (pits_prompt.mode == PITS_PROMPT_TARGET)
+    getViewGeometry_PITS(pits_prompt.cx, pits_prompt.cy, vx0, vy0, ox, oy,
+			 cols, rows, scale);
+  else if (pits_view.show_all)
     getWholePitGeometry(vx0, vy0, ox, oy, cols, rows, scale);
   else
     getViewGeometry_PITS(pits_view.px, pits_view.py, vx0, vy0, ox, oy,
@@ -407,6 +472,8 @@ static void RenderView(void)
 
   surface = pits_bitmap->surface;
 
+  SDL_FillRect(surface, NULL, colors[0]);
+
   SDL_LockSurface(surface);
 
   draw_pixels = surface->pixels;
@@ -414,14 +481,84 @@ static void RenderView(void)
   draw_width = SXSIZE;
   draw_height = SYSIZE;
 
-  memset(surface->pixels, 0, surface->pitch * surface->h);
 
-  getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
-  draw_scale = scale;
+  if (pits_prompt.mode == PITS_PROMPT_INPUT)
+  {
+    DrawRoom();
+  }
+  else
+  {
+    getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
+    draw_scale = scale;
 
-  DrawPit(vx0, vy0, ox, oy, cols, rows);
+    DrawPit(vx0, vy0, ox, oy, cols, rows);
+
+    if (pits_prompt.mode == PITS_PROMPT_TARGET)
+      DrawFrame(ox + (pits_prompt.cx - vx0) * PITS_SQUARE * scale,
+		oy + (pits_prompt.cy - vy0) * PITS_SQUARE * scale,
+		PITS_SQUARE * scale);
+  }
 
   SDL_UnlockSurface(surface);
+}
+
+// the words on the room's keys, and what the player is asked
+static void DrawPromptText(Bitmap *target_bitmap)
+{
+  int font_nr = FONT_INPUT_1;
+  int font_width = getFontWidth(font_nr);
+  int font_height = getFontHeight(font_nr);
+  int ox, oy, scale, square, x, y;
+  char line[PITS_INPUT_LEN + 4];
+
+  if (pits_prompt.mode == PITS_PROMPT_TARGET)
+  {
+    char *text = "CHOOSE A SQUARE";
+
+    DrawTextExt(target_bitmap,
+		SX + (SXSIZE - strlen(text) * font_width) / 2,
+		SY + font_height, text, font_nr, BLIT_MASKED);
+
+    return;
+  }
+
+  getRoomGeometry(&ox, &oy, &scale);
+  square = PITS_SQUARE * scale;
+
+  for (y = 0; y < PITS_ROOM_ROWS; y++)
+  {
+    for (x = 0; x < PITS_ROOM_COLS; x++)
+    {
+      int key = getRoomKey_PITS(x, y);
+      char text[3] = { key, '\0', '\0' };
+      int sx = SX + ox + x * square;
+      int sy = SY + oy + y * square;
+
+      if (key == PITS_KEY_DONE)
+      {
+	// "done" takes two squares: its word once, across them
+	if (getRoomKey_PITS(x - 1, y) == PITS_KEY_DONE)
+	  continue;
+
+	strcpy(text, "OK");
+	sx += square / 2;
+      }
+      else if (key == PITS_KEY_SPACE)
+      {
+	text[0] = '_';
+      }
+
+      DrawTextExt(target_bitmap,
+		  sx + (square - strlen(text) * font_width) / 2,
+		  sy + (square - font_height) / 2, text, font_nr, BLIT_MASKED);
+    }
+  }
+
+  // the line typed so far
+  sprintf(line, "%s_", pits_prompt.typed);
+  DrawTextExt(target_bitmap,
+	      SX + (SXSIZE - (PITS_INPUT_LEN + 1) * font_width) / 2,
+	      SY + oy - square - font_height, line, font_nr, BLIT_MASKED);
 }
 
 void RedrawPlayfield_PITS(boolean force_redraw)
@@ -435,12 +572,25 @@ void BlitScreenToBitmap_PITS(Bitmap *target_bitmap)
 
   if (pits_bitmap != NULL)
     BlitBitmap(pits_bitmap, target_bitmap, 0, 0, SXSIZE, SYSIZE, SX, SY);
+
+  if (pits_prompt.mode != PITS_PROMPT_NONE && !program.headless)
+    DrawPromptText(target_bitmap);
 }
 
 static int getLevelFromScreen(int screen_pos, boolean horizontal)
 {
   int vx0, vy0, ox, oy, cols, rows, scale;
   int square, pos;
+
+  // the typing room: its keys' places
+  if (pits_prompt.mode == PITS_PROMPT_INPUT)
+  {
+    getRoomGeometry(&ox, &oy, &scale);
+    square = PITS_SQUARE * scale;
+    pos = screen_pos - (horizontal ? SX + ox : SY + oy);
+
+    return (pos < 0 ? -1 : pos / square);
+  }
 
   getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
 
