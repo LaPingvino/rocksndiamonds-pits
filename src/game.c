@@ -12565,11 +12565,9 @@ static void CheckLevelSolved(void)
     if (game_pits.level_solved &&
 	!game_pits.game_over)				// game won
     {
-      // as the game shows it, before going on: the level's password
-      char text[100 + PITS_PASSWORD_LEN];
-
-      snprintf(text, sizeof(text), "Level Complete!\n\n\nPassword:  %s", native_pits_level.password);
-      ShowText_PITS(text);
+      // as the game shows it, before going on (without the level's
+      // password: R'n'D has its own way to go to a level)
+      ShowText_PITS("Level Complete!");
 
       LevelSolved();
 
