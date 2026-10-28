@@ -2268,6 +2268,7 @@ filetype_id_list[] =
   { LEVEL_FILE_TYPE_DC,		"DC"	},
   { LEVEL_FILE_TYPE_MM,		"MM"	},
   { LEVEL_FILE_TYPE_MM,		"DF"	},
+  { LEVEL_FILE_TYPE_PITS,	"PITS"	},
   { -1,				NULL	},
 };
 
@@ -2924,6 +2925,10 @@ static int getFileTypeFromBasename(char *basename)
   if (strSuffixLower(basename, ".dc") ||
       strSuffixLower(basename, ".dc2"))
     return LEVEL_FILE_TYPE_DC;
+
+  // check for typical filename of a Puzzle Pits level file
+  if (strSuffixLower(basename, ".pit"))
+    return LEVEL_FILE_TYPE_PITS;
 
   // check for typical filename of a Sokoban level package file
   if (strSuffixLower(basename, ".xsb") &&
@@ -8625,6 +8630,81 @@ static void LoadLevelFromFileInfo_MM(struct LevelInfo *level,
     level->no_valid_file = TRUE;
 }
 
+// ----------------------------------------------------------------------------
+// functions for loading Puzzle Pits level
+// ----------------------------------------------------------------------------
+
+static void LoadLevelFromFileInfo_PITS(struct LevelInfo *level,
+				       struct LevelFileInfo *level_file_info,
+				       boolean level_info_only)
+{
+  if (!LoadNativeLevel_PITS(level_file_info->filename, level_info_only))
+    level->no_valid_file = TRUE;
+}
+
+// the pit in R'n'D's elements, for its preview and the level editor
+static int map_tile_PITS_to_RND(int under, int over)
+{
+  if (over == 100)
+    return EL_PLAYER_1;
+
+  if (over > 0 && over < 53)
+  {
+    switch (over - (over - 1) % 4)
+    {
+      case 33: case 41: case 49:	return EL_SOKOBAN_FIELD_FULL;	// each on its target
+      case 21: case 25: case 29:
+      case 37: case 45:			return EL_SOKOBAN_OBJECT;
+      default:				return EL_STEELWALL;
+    }
+  }
+
+  switch (under)
+  {
+    case 54: case 55: case 56:		return EL_SOKOBAN_FIELD_EMPTY;
+    case 60:				return EL_SP_PORT_UP;
+    case 61:				return EL_SP_PORT_RIGHT;
+    case 62:				return EL_SP_PORT_DOWN;
+    case 63:				return EL_SP_PORT_LEFT;
+    case 64:				return EL_EMERALD_RED;
+    case 65:				return EL_EMERALD;
+    case 66:				return EL_EMERALD_PURPLE;
+    case 67:				return EL_EMERALD_YELLOW;
+    case 68: case 69: case 70:		return EL_KEY_1 + under - 68;
+    case 76: case 77: case 78:		return EL_GATE_1 + under - 76;
+    case 83: case 84: case 88:
+    case 92: case 96:			return EL_ACID;
+    default:				return EL_EMPTY;
+  }
+}
+
+static void CopyNativeLevel_PITS_to_RND(struct LevelInfo *level)
+{
+  struct LevelInfo_PITS *level_pits = &native_pits_level;
+  int x, y;
+
+  // the pit without its edge (always empty)
+  level->fieldx = PITS_SIZE - 2;
+  level->fieldy = PITS_SIZE - 2;
+
+  for (x = 0; x < level->fieldx; x++)
+    for (y = 0; y < level->fieldy; y++)
+      level->field[x][y] = map_tile_PITS_to_RND(level_pits->under[x + 1][y + 1],
+						level_pits->over[x + 1][y + 1]);
+
+  level->time = 0;
+  level->gems_needed = 0;
+
+  // high scores: the fewest moves (shown as steps)
+  level->use_step_counter = TRUE;
+  level->rate_time_over_score = TRUE;
+
+  strncpy(level->name, level_pits->title, MAX_LEVEL_NAME_LEN);
+  level->name[MAX_LEVEL_NAME_LEN] = '\0';
+  strncpy(level->name_native, level_pits->title, MAX_LEVEL_NAME_LEN);
+  level->name_native[MAX_LEVEL_NAME_LEN] = '\0';
+}
+
 void CopyNativeLevel_RND_to_Native(struct LevelInfo *level)
 {
   if (level->game_engine_type == GAME_ENGINE_TYPE_BD)
@@ -8647,6 +8727,8 @@ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
     CopyNativeLevel_SP_to_RND(level);
   else if (level->game_engine_type == GAME_ENGINE_TYPE_MM)
     CopyNativeLevel_MM_to_RND(level);
+  else if (level->game_engine_type == GAME_ENGINE_TYPE_PITS)
+    CopyNativeLevel_PITS_to_RND(level);
 }
 
 void SaveNativeLevel(struct LevelInfo *level)
@@ -8723,6 +8805,11 @@ static void LoadLevelFromFileInfo(struct LevelInfo *level,
     case LEVEL_FILE_TYPE_MM:
       LoadLevelFromFileInfo_MM(level, level_file_info, level_info_only);
       level->game_engine_type = GAME_ENGINE_TYPE_MM;
+      break;
+
+    case LEVEL_FILE_TYPE_PITS:
+      LoadLevelFromFileInfo_PITS(level, level_file_info, level_info_only);
+      level->game_engine_type = GAME_ENGINE_TYPE_PITS;
       break;
 
     case LEVEL_FILE_TYPE_DC:

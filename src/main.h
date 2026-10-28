@@ -26,6 +26,7 @@
 #include "game_em/game_em.h"
 #include "game_sp/game_sp.h"
 #include "game_mm/game_mm.h"
+#include "game_pits/game_pits.h"
 
 #include "conf_gfx.h"	// include auto-generated data structure definitions
 #include "conf_snd.h"	// include auto-generated data structure definitions
@@ -3300,8 +3301,9 @@ enum
 #define LEVEL_FILE_TYPE_SB		6
 #define LEVEL_FILE_TYPE_DC		7
 #define LEVEL_FILE_TYPE_MM		8
+#define LEVEL_FILE_TYPE_PITS		9
 
-#define NUM_LEVEL_FILE_TYPES		9
+#define NUM_LEVEL_FILE_TYPES		10
 
 // values for game engine type identifier
 #define GAME_ENGINE_TYPE_UNKNOWN	LEVEL_FILE_TYPE_UNKNOWN
@@ -3310,8 +3312,9 @@ enum
 #define GAME_ENGINE_TYPE_EM		LEVEL_FILE_TYPE_EM
 #define GAME_ENGINE_TYPE_SP		LEVEL_FILE_TYPE_SP
 #define GAME_ENGINE_TYPE_MM		LEVEL_FILE_TYPE_MM
+#define GAME_ENGINE_TYPE_PITS		LEVEL_FILE_TYPE_PITS
 
-#define NUM_ENGINE_TYPES		5
+#define NUM_ENGINE_TYPES		6
 
 // values for automatically playing tapes
 #define AUTOPLAY_NONE			0
