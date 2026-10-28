@@ -1,0 +1,3846 @@
+From 58267a2911f9bb85d6e6b076d1d326ccf4967e51 Mon Sep 17 00:00:00 2001
+From: Joop Kiefte <ikojba@gmail.com>
+Date: Wed, 28 Oct 2026 18:45:26 +0000
+Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
+
+The Puzzle Pits (Abe Pralle, Plasma Works, 1995) is a Sokoban-like
+puzzle game with scripted levels. This engine plays its own level files
+(LEVELnn.PIT) by its own rules, drawn from its own pictures (TILES1.DAT
+to TILES3.DAT), with its sounds (*.WAV):
+
+- the rules: pushing, the tile rules (water, lava, holes, wood, glass,
+  arrows, coloured targets), plates, switches, signs, gems and keys,
+  winning when every target holds its colour
+- the scripts: the game's own language, run as the game runs them;
+  their text in R'n'D's envelopes, a page at a time; a script that asks
+  for typed text (INPUT) opens a room of letter keys, and one that asks
+  for a square (TARGET) a cursor
+- the pit drawn as the game draws it, objects reaching over the squares
+  beside them, around the player, filling the playfield
+- turns counted from frames only, so tapes replay
+
+Keys: directions; snap with a direction uses a gem (left red, up green,
+right blue, down yellow), drop with a direction a key (left red, up
+green, right blue); snap alone waits a turn. Mouse: the left button
+steps towards a square, the right one walks there.
+
+Written from a description of the game (PITS-RULES.md and PIT-FORMAT.md,
+https://github.com/LaPingvino/The-Puzzle-Pits/tree/master/docs), not
+from its code.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/Makefile               |    3 +-
+ src/game_pits/Makefile     |    3 +
+ src/game_pits/pits_gfx.c   |  658 ++++++++++++++
+ src/game_pits/pits_logic.c | 1730 ++++++++++++++++++++++++++++++++++++
+ src/game_pits/pits_main.c  | 1017 +++++++++++++++++++++
+ src/game_pits/pits_main.h  |  342 +++++++
+ 6 files changed, 3752 insertions(+), 1 deletion(-)
+ create mode 100644 src/game_pits/pits_gfx.c
+ create mode 100644 src/game_pits/pits_logic.c
+ create mode 100644 src/game_pits/pits_main.c
+ create mode 100644 src/game_pits/pits_main.h
+
+diff --git a/src/Makefile b/src/Makefile
+index 7bad7d0..10fdb94 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -327,7 +327,8 @@ $(GAME_SP):
+ 
+ game_pits_dir:
+ 	@$(MAKE) -C $(GAME_PITS_DIR)
+-$(GAME_PITS):
++# rebuilt (and the program relinked) when the engine's sources change
++$(GAME_PITS): $(wildcard $(GAME_PITS_DIR)/*.c $(GAME_PITS_DIR)/*.h)
+ 	@$(MAKE) -C $(GAME_PITS_DIR)
+ 
+ game_mm_dir:
+diff --git a/src/game_pits/Makefile b/src/game_pits/Makefile
+index 7bfba96..10f59b4 100644
+--- a/src/game_pits/Makefile
++++ b/src/game_pits/Makefile
+@@ -23,6 +23,9 @@ $(GAME_PITS): $(OBJS)
+ .c.o:
+ 	$(CC) $(PROFILING) $(CFLAGS) -funsigned-char -c $*.c
+ 
++# the engine's own headers: all its files use them
++$(OBJS): pits_main.h export_pits.h game_pits.h
++
+ clean:
+ 	$(RM) $(OBJS)
+ 	$(RM) $(GAME_PITS)
+diff --git a/src/game_pits/pits_gfx.c b/src/game_pits/pits_gfx.c
+new file mode 100644
+index 0000000..3e0c897
+--- /dev/null
++++ b/src/game_pits/pits_gfx.c
+@@ -0,0 +1,658 @@
++// ============================================================================
++// The Puzzle Pits engine for Rocks'n'Diamonds
++// ----------------------------------------------------------------------------
++// Written from the description of the game in PITS-RULES.md and of its level
++// files in PIT-FORMAT.md.
++// ----------------------------------------------------------------------------
++// pits_gfx.c: the pit's pictures (TILES1.DAT to TILES3.DAT) and its sounds
++// ============================================================================
++
++#include "pits_main.h"
++
++#include "../main.h"			// R'n'D's fonts, for the typing room
++
++
++#define MAX_SHAPES			400
++#define NUM_COLORS			64
++
++#define SHAPE_VOID			0
++#define SHAPE_SPARKLE			72
++
++struct ShapeInfo
++{
++  int width, height;
++  unsigned char *pixels;
++};
++
++static struct ShapeInfo shapes[MAX_SHAPES];
++static int num_shapes = 0;
++static char shapes_directory[1024] = "";
++
++static Bitmap *pits_bitmap = NULL;
++static Uint32 colors[256];
++
++static Mix_Chunk *sounds[PITS_NUM_SOUNDS];
++static char sounds_directory[1024] = "";
++
++// the palette, 6 bits a component
++static unsigned char palette[NUM_COLORS][3] =
++{
++  {  0,  0,  0 }, { 63, 63, 63 }, { 54, 54, 54 }, { 50, 50, 50 },
++  { 42, 42, 42 }, { 37, 37, 37 }, { 25, 25, 25 }, { 63,  0,  0 },
++  { 54,  0,  0 }, { 46,  0,  0 }, { 37,  0,  0 }, { 63, 63,  0 },
++  { 63, 42,  0 }, {  0, 63, 63 }, { 29, 46, 63 }, { 33,  0, 33 },
++  { 33, 63, 33 }, {  0, 63,  0 }, {  0, 46,  0 }, {  0, 33,  0 },
++  {  0, 33, 63 }, {  0, 25, 58 }, {  0, 16, 50 }, {  0,  8, 46 },
++  {  0,  4, 37 }, {  0,  0, 33 }, { 63, 37, 33 }, { 46, 21, 21 },
++  { 33, 16,  0 }, { 29, 12,  0 }, { 25,  8,  0 }, { 21,  4,  0 },
++  {  0,  0,  0 }, { 31, 31, 31 }, { 27, 27, 27 }, { 25, 25, 25 },
++  { 21, 21, 21 }, { 18, 18, 18 }, { 12, 12, 12 }, { 31,  0,  0 },
++  { 27,  0,  0 }, { 23,  0,  0 }, { 18,  0,  0 }, { 31, 31,  0 },
++  { 31, 21,  0 }, {  0, 31, 31 }, { 14, 23, 31 }, { 16,  0, 16 },
++  { 16, 31, 16 }, {  0, 31,  0 }, {  0, 23,  0 }, {  0, 16,  0 },
++  {  0, 16, 31 }, {  0, 12, 29 }, {  0,  8, 25 }, {  0,  4, 23 },
++  {  0,  2, 18 }, {  0,  0, 16 }, { 31, 18, 16 }, { 23, 10, 10 },
++  { 16,  8,  0 }, { 14,  6,  0 }, { 12,  4,  0 }, { 10,  2,  0 },
++};
++
++static void getRoomGeometry(int *, int *, int *);
++
++static char *sound_names[PITS_NUM_SOUNDS] =
++{
++  "CRACK.WAV",
++  "GLASS.WAV",
++  "LAVA.WAV",
++  "MAGIC.WAV",
++  "PLATEOFF.WAV",
++  "PLATEON.WAV",
++  "SCRAPE.WAV",
++  "SPLINTER.WAV",
++  "WATER.WAV",
++};
++
++
++// ----------------------------------------------------------------------------
++// files next to the levels, in capitals or not
++// ----------------------------------------------------------------------------
++
++static char *getPitsFilename(char *directory, char *name)
++{
++  char *filename = getPath2(directory, name);
++  char lower[64];
++  int i;
++
++  if (fileExists(filename))
++    return filename;
++
++  free(filename);
++
++  for (i = 0; name[i] != '\0' && i < 63; i++)
++    lower[i] = tolower((unsigned char)name[i]);
++  lower[i] = '\0';
++
++  return getPath2(directory, lower);
++}
++
++
++// ----------------------------------------------------------------------------
++// the shapes
++// ----------------------------------------------------------------------------
++
++static void FreeShapes(void)
++{
++  int i;
++
++  for (i = 0; i < num_shapes; i++)
++    checked_free(shapes[i].pixels);
++
++  num_shapes = 0;
++}
++
++static void LoadShapeFile(char *filename)
++{
++  FILE *file = fopen(filename, "rb");
++
++  if (file == NULL)
++  {
++    Warn("cannot read Puzzle Pits pictures '%s'", filename);
++
++    return;
++  }
++
++  while (num_shapes < MAX_SHAPES)
++  {
++    int width = fgetc(file);
++    int height = fgetc(file);
++    struct ShapeInfo *shape = &shapes[num_shapes];
++
++    if (width <= 0 || height < 0)		// width 0 (or the end): no more
++      break;
++
++    shape->width = width;
++    shape->height = height;
++    shape->pixels = checked_calloc(width * height + 1);
++
++    if (fread(shape->pixels, 1, width * height, file) != width * height)
++    {
++      free(shape->pixels);
++
++      break;
++    }
++
++    num_shapes++;
++  }
++
++  fclose(file);
++}
++
++void InitGfx_PITS(char *directory)
++{
++  int i;
++
++  for (i = 0; i < 256; i++)
++  {
++    int r = (i < NUM_COLORS ? palette[i][0] : 0);
++    int g = (i < NUM_COLORS ? palette[i][1] : 0);
++    int b = (i < NUM_COLORS ? palette[i][2] : 0);
++
++    colors[i] = (0xff000000 |
++		 ((r * 4 + r / 16) << 16) |
++		 ((g * 4 + g / 16) << 8) |
++		 (b * 4 + b / 16));
++  }
++
++  if (strcmp(directory, shapes_directory) == 0 && num_shapes > 0)
++    return;
++
++  FreeShapes();
++
++  for (i = 1; i <= 3; i++)
++  {
++    char name[32];
++    char *filename;
++
++    sprintf(name, "TILES%d.DAT", i);
++    filename = getPitsFilename(directory, name);
++    LoadShapeFile(filename);
++    free(filename);
++  }
++
++  strcpy(shapes_directory, directory);
++}
++
++
++// ----------------------------------------------------------------------------
++// drawing
++// ----------------------------------------------------------------------------
++
++static Uint32 *draw_pixels;
++static int draw_pitch;			// in pixels
++static int draw_width, draw_height;
++static int draw_scale;
++
++static void DrawShape(int nr, int x, int y, boolean masked)
++{
++  struct ShapeInfo *shape;
++  int sx, sy, i, j;
++
++  if (nr < 0 || nr >= num_shapes)
++    return;
++
++  shape = &shapes[nr];
++
++  for (sy = 0; sy < shape->height; sy++)
++  {
++    for (sx = 0; sx < shape->width; sx++)
++    {
++      int index = shape->pixels[sy * shape->width + sx];
++      Uint32 color = colors[index];
++
++      if (masked && index == 0)
++	continue;
++
++      for (j = 0; j < draw_scale; j++)
++      {
++	int yy = y + sy * draw_scale + j;
++
++	if (yy < 0 || yy >= draw_height)
++	  continue;
++
++	for (i = 0; i < draw_scale; i++)
++	{
++	  int xx = x + sx * draw_scale + i;
++
++	  if (xx >= 0 && xx < draw_width)
++	    draw_pixels[yy * draw_pitch + xx] = color;
++	}
++      }
++    }
++  }
++}
++
++// what stands on a square, as a shape (the first of its four)
++static int getObjectShape(int x, int y)
++{
++  if (!PITS_IN_ARRAY(x, y))
++    return 0;
++
++  if (x == pits_view.px && y == pits_view.py && pits_view.player_shape >= 0)
++    return pits_view.player_shape;
++
++  return pits_view.over[x][y];
++}
++
++static int getGroundShape(int x, int y, int frame, boolean sparkle)
++{
++  int under;
++
++  // outside the pit: the void
++  if (x < 0 || x > PITS_MAX || y < 0 || y > PITS_MAX)
++    return SHAPE_VOID;
++
++  under = pits_view.under[x][y];
++
++  if (PITS_IS_WATER(under))
++    return PITS_U_WATER + frame;
++  if (PITS_IS_LAVA(under))
++    return PITS_U_LAVA + frame;
++  if (under >= PITS_U_LAVA_COOLING_1 && under < PITS_U_LAVA_COOLING_2)
++    return PITS_U_LAVA_COOLING_1 + frame;
++  if (under >= PITS_U_LAVA_COOLING_2 && under < 100)
++    return PITS_U_LAVA_COOLING_2 + frame;
++  if (under == PITS_U_GLASS && sparkle)
++    return SHAPE_SPARKLE + frame;
++
++  return under;
++}
++
++// the parts of the objects that reach into a square, drawn on it
++static void DrawObjectParts(int x, int y, int sx, int sy)
++{
++  static int dx[4] = { 0, 1, 0, 1 };
++  static int dy[4] = { 0, 0, 1, 1 };
++  static int quarter[4] = { 3, 2, 1, 0 };
++  int i;
++
++  for (i = 0; i < 4; i++)
++  {
++    int shape = getObjectShape(x + dx[i], y + dy[i]);
++
++    if (shape > 0)
++      DrawShape(shape + quarter[i], sx, sy, TRUE);
++  }
++}
++
++static void DrawPit(int vx0, int vy0, int ox, int oy, int cols, int rows)
++{
++  int square = PITS_SQUARE * draw_scale;
++  int px = pits_view.px, py = pits_view.py;
++  int i, j;
++
++  for (j = 0; j < rows; j++)
++  {
++    for (i = 0; i < cols; i++)
++    {
++      int x = vx0 + i, y = vy0 + j;
++      int sx = ox + i * square, sy = oy + j * square;
++      int nr = j * cols + i;
++      int frame = (pits_view.anim_counter + nr) & 3;
++
++      DrawShape(getGroundShape(x, y, frame, nr == pits_view.sparkle),
++		sx, sy, FALSE);
++
++      DrawObjectParts(x, y, sx, sy);
++    }
++  }
++
++  // pushing east or south: the player's front over the box
++  if (pits_view.pushing_front && pits_view.player_shape >= 0)
++  {
++    boolean east = (pits_view.facing == PITS_EAST * 4);
++    int qx[2], qy[2], q[2];
++    int bx = px + (east ? 1 : 0), by = py + (east ? 0 : 1);
++
++    qx[0] = px;			qy[0] = (east ? py - 1 : py);
++    q[0] = (east ? 1 : 2);
++    qx[1] = px;			qy[1] = py;
++    q[1] = 3;
++
++    if (!east)
++      qx[0] = px - 1;
++
++    for (i = 0; i < 2; i++)
++    {
++      int sx = ox + (qx[i] - vx0) * square;
++      int sy = oy + (qy[i] - vy0) * square;
++      int below_x[2] = { qx[i], qx[i] + 1 };
++      int below_y[2] = { qy[i] + 1, qy[i] + 1 };
++      int below_q[2] = { 1, 0 };
++      int k;
++
++      DrawShape(pits_view.player_shape + q[i], sx, sy, TRUE);
++
++      for (k = 0; k < 2; k++)
++      {
++	int shape;
++
++	if ((below_x[k] == bx && below_y[k] == by) ||
++	    (below_x[k] == px && below_y[k] == py))
++	  continue;
++
++	shape = getObjectShape(below_x[k], below_y[k]);
++
++	if (shape > 0)
++	  DrawShape(shape + below_q[k], sx, sy, TRUE);
++      }
++    }
++  }
++
++  // a ghost: over everything
++  if (pits_view.ghost_shape >= 0)
++  {
++    int sx = ox + (px - vx0) * square;
++    int sy = oy + (py - vy0) * square;
++
++    DrawShape(pits_view.ghost_shape + 0, sx - square, sy - square, TRUE);
++    DrawShape(pits_view.ghost_shape + 1, sx,          sy - square, TRUE);
++    DrawShape(pits_view.ghost_shape + 2, sx - square, sy,          TRUE);
++    DrawShape(pits_view.ghost_shape + 3, sx,          sy,          TRUE);
++  }
++}
++
++// the typing room: floor squares with the keys, the player on one of them
++static void DrawRoom(void)
++{
++  int ox, oy, scale, square, x, y;
++
++  getRoomGeometry(&ox, &oy, &scale);
++  draw_scale = scale;
++  square = PITS_SQUARE * scale;
++
++  for (y = 0; y < PITS_ROOM_ROWS; y++)
++    for (x = 0; x < PITS_ROOM_COLS; x++)
++      DrawShape(PITS_U_FLOOR, ox + x * square, oy + y * square, FALSE);
++
++  // the player: an object over two by two squares, up and left
++  x = ox + pits_prompt.cx * square;
++  y = oy + pits_prompt.cy * square;
++
++  DrawShape(100 + pits_prompt.facing + 0, x - square, y - square, TRUE);
++  DrawShape(100 + pits_prompt.facing + 1, x,          y - square, TRUE);
++  DrawShape(100 + pits_prompt.facing + 2, x - square, y,          TRUE);
++  DrawShape(100 + pits_prompt.facing + 3, x,          y,          TRUE);
++}
++
++// the TARGET cursor: a frame on a square
++static void DrawFrame(int x, int y, int size)
++{
++  Uint32 color = colors[11];		// yellow
++  int width = 2 * draw_scale;
++  int i, j;
++
++  for (j = 0; j < size; j++)
++  {
++    for (i = 0; i < size; i++)
++    {
++      int xx = x + i, yy = y + j;
++
++      if (i >= width && i < size - width && j >= width && j < size - width)
++	continue;
++
++      if (xx >= 0 && xx < draw_width && yy >= 0 && yy < draw_height)
++	draw_pixels[yy * draw_pitch + xx] = color;
++    }
++  }
++}
++
++// the whole pit (the yellow gem), as small as it fits
++static void getWholePitGeometry(int *vx0, int *vy0, int *ox, int *oy,
++				int *cols, int *rows, int *scale)
++{
++  int s = MAX(1, MIN(SXSIZE, SYSIZE) / (PITS_SIZE * PITS_SQUARE));
++
++  *scale = s;
++  *vx0 = 0;
++  *vy0 = 0;
++  *cols = PITS_SIZE;
++  *rows = PITS_SIZE;
++  *ox = (SXSIZE - PITS_SIZE * PITS_SQUARE * s) / 2;
++  *oy = (SYSIZE - PITS_SIZE * PITS_SQUARE * s) / 2;
++}
++
++// the typing room: its keys in the middle, the line typed above them
++static void getRoomGeometry(int *ox, int *oy, int *scale)
++{
++  int vx0, vy0, ox_pit, oy_pit, cols, rows;
++  int square;
++
++  getViewGeometry_PITS(0, 0, &vx0, &vy0, &ox_pit, &oy_pit, &cols, &rows, scale);
++
++  square = PITS_SQUARE * *scale;
++  *ox = (SXSIZE - PITS_ROOM_COLS * square) / 2;
++  *oy = (SYSIZE - PITS_ROOM_ROWS * square) / 2 + square / 2;
++}
++
++static void getShownGeometry(int *vx0, int *vy0, int *ox, int *oy,
++			     int *cols, int *rows, int *scale)
++{
++  if (pits_prompt.mode == PITS_PROMPT_TARGET)
++    getViewGeometry_PITS(pits_prompt.cx, pits_prompt.cy, vx0, vy0, ox, oy,
++			 cols, rows, scale);
++  else if (pits_view.show_all)
++    getWholePitGeometry(vx0, vy0, ox, oy, cols, rows, scale);
++  else
++    getViewGeometry_PITS(pits_view.px, pits_view.py, vx0, vy0, ox, oy,
++			 cols, rows, scale);
++}
++
++static void RenderView(void)
++{
++  SDL_Surface *surface;
++  int vx0, vy0, ox, oy, cols, rows, scale;
++
++  if (program.headless)
++    return;
++
++  if (pits_bitmap == NULL ||
++      pits_bitmap->width != SXSIZE || pits_bitmap->height != SYSIZE)
++  {
++    if (pits_bitmap != NULL)
++      FreeBitmap(pits_bitmap);
++
++    pits_bitmap = CreateBitmapStruct();
++    pits_bitmap->surface =
++      SDL_CreateRGBSurfaceWithFormat(0, SXSIZE, SYSIZE, 32,
++				     SDL_PIXELFORMAT_ARGB8888);
++    pits_bitmap->width = SXSIZE;
++    pits_bitmap->height = SYSIZE;
++
++    if (pits_bitmap->surface == NULL)
++      Fail("SDL_CreateRGBSurfaceWithFormat() failed: %s", SDL_GetError());
++  }
++
++  surface = pits_bitmap->surface;
++
++  SDL_FillRect(surface, NULL, colors[0]);
++
++  SDL_LockSurface(surface);
++
++  draw_pixels = surface->pixels;
++  draw_pitch = surface->pitch / 4;
++  draw_width = SXSIZE;
++  draw_height = SYSIZE;
++
++
++  if (pits_prompt.mode == PITS_PROMPT_INPUT)
++  {
++    DrawRoom();
++  }
++  else
++  {
++    getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
++    draw_scale = scale;
++
++    DrawPit(vx0, vy0, ox, oy, cols, rows);
++
++    if (pits_prompt.mode == PITS_PROMPT_TARGET)
++      DrawFrame(ox + (pits_prompt.cx - vx0) * PITS_SQUARE * scale,
++		oy + (pits_prompt.cy - vy0) * PITS_SQUARE * scale,
++		PITS_SQUARE * scale);
++  }
++
++  SDL_UnlockSurface(surface);
++}
++
++// the words on the room's keys, and what the player is asked
++static void DrawPromptText(Bitmap *target_bitmap)
++{
++  int font_nr = FONT_INPUT_1;
++  int font_width = getFontWidth(font_nr);
++  int font_height = getFontHeight(font_nr);
++  int ox, oy, scale, square, x, y;
++  char line[PITS_INPUT_LEN + 4];
++
++  if (pits_prompt.mode == PITS_PROMPT_TARGET)
++  {
++    char *text = "CHOOSE A SQUARE";
++
++    DrawTextExt(target_bitmap,
++		SX + (SXSIZE - strlen(text) * font_width) / 2,
++		SY + font_height, text, font_nr, BLIT_MASKED);
++
++    return;
++  }
++
++  getRoomGeometry(&ox, &oy, &scale);
++  square = PITS_SQUARE * scale;
++
++  for (y = 0; y < PITS_ROOM_ROWS; y++)
++  {
++    for (x = 0; x < PITS_ROOM_COLS; x++)
++    {
++      int key = getRoomKey_PITS(x, y);
++      char text[3] = { key, '\0', '\0' };
++      int sx = SX + ox + x * square;
++      int sy = SY + oy + y * square;
++
++      if (key == PITS_KEY_DONE)
++      {
++	// "done" takes two squares: its word once, across them
++	if (getRoomKey_PITS(x - 1, y) == PITS_KEY_DONE)
++	  continue;
++
++	strcpy(text, "OK");
++	sx += square / 2;
++      }
++      else if (key == PITS_KEY_SPACE)
++      {
++	text[0] = '_';
++      }
++
++      DrawTextExt(target_bitmap,
++		  sx + (square - strlen(text) * font_width) / 2,
++		  sy + (square - font_height) / 2, text, font_nr, BLIT_MASKED);
++    }
++  }
++
++  // the line typed so far
++  sprintf(line, "%s_", pits_prompt.typed);
++  DrawTextExt(target_bitmap,
++	      SX + (SXSIZE - (PITS_INPUT_LEN + 1) * font_width) / 2,
++	      SY + oy - square - font_height, line, font_nr, BLIT_MASKED);
++}
++
++void RedrawPlayfield_PITS(boolean force_redraw)
++{
++  RenderView();
++}
++
++void BlitScreenToBitmap_PITS(Bitmap *target_bitmap)
++{
++  RenderView();
++
++  if (pits_bitmap != NULL)
++    BlitBitmap(pits_bitmap, target_bitmap, 0, 0, SXSIZE, SYSIZE, SX, SY);
++
++  if (pits_prompt.mode != PITS_PROMPT_NONE && !program.headless)
++    DrawPromptText(target_bitmap);
++}
++
++static int getLevelFromScreen(int screen_pos, boolean horizontal)
++{
++  int vx0, vy0, ox, oy, cols, rows, scale;
++  int square, pos;
++
++  // the typing room: its keys' places
++  if (pits_prompt.mode == PITS_PROMPT_INPUT)
++  {
++    getRoomGeometry(&ox, &oy, &scale);
++    square = PITS_SQUARE * scale;
++    pos = screen_pos - (horizontal ? SX + ox : SY + oy);
++
++    return (pos < 0 ? -1 : pos / square);
++  }
++
++  getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);
++
++  square = PITS_SQUARE * scale;
++  pos = screen_pos - (horizontal ? SX + ox : SY + oy);
++
++  if (pos < 0)
++    return -1;
++
++  // R'n'D's playfield is the inside of the pit (1 to 21)
++  return (horizontal ? vx0 : vy0) + pos / square - 1;
++}
++
++int getLevelFromScreenX_PITS(int x)
++{
++  return getLevelFromScreen(x, TRUE);
++}
++
++int getLevelFromScreenY_PITS(int y)
++{
++  return getLevelFromScreen(y, FALSE);
++}
++
++
++// ----------------------------------------------------------------------------
++// the sounds
++// ----------------------------------------------------------------------------
++
++void InitSound_PITS(char *directory)
++{
++  int i;
++
++  if (!audio.sound_available)
++    return;
++
++  if (strcmp(directory, sounds_directory) == 0)
++    return;
++
++  for (i = 0; i < PITS_NUM_SOUNDS; i++)
++  {
++    char *filename = getPitsFilename(directory, sound_names[i]);
++
++    if (sounds[i] != NULL)
++      Mix_FreeChunk(sounds[i]);
++
++    sounds[i] = Mix_LoadWAV(filename);
++
++    free(filename);
++  }
++
++  strcpy(sounds_directory, directory);
++}
++
++void PlaySounds_PITS(int sound_mask)
++{
++  int i;
++
++  if (sound_mask == 0 || !audio.sound_available || !audio.sound_enabled ||
++      !setup.sound_simple)
++    return;
++
++  for (i = 0; i < PITS_NUM_SOUNDS; i++)
++    if ((sound_mask & (1 << i)) && sounds[i] != NULL)
++      Mix_PlayChannel(-1, sounds[i], 0);
++}
+diff --git a/src/game_pits/pits_logic.c b/src/game_pits/pits_logic.c
+new file mode 100644
+index 0000000..fe85a10
+--- /dev/null
++++ b/src/game_pits/pits_logic.c
+@@ -0,0 +1,1730 @@
++// ============================================================================
++// The Puzzle Pits engine for Rocks'n'Diamonds
++// ----------------------------------------------------------------------------
++// Written from the description of the game in PITS-RULES.md and of its level
++// files in PIT-FORMAT.md.
++// ----------------------------------------------------------------------------
++// pits_logic.c: the rules of the game, its turns and its scripts
++// ============================================================================
++
++#include "pits_main.h"
++
++
++#define SCRIPT_MAX_STEPS		200000	// against scripts that never end
++#define SCRIPT_MAX_LOOPS		32
++
++// script commands
++#define CMD_END				0
++#define CMD_ENDIF			1
++#define CMD_NEXT			2
++#define CMD_ELSE			3
++#define CMD_SWITCHOFF			4
++#define CMD_SWITCHON			5
++#define CMD_IF_EQ			6
++#define CMD_IF_NE			11
++#define CMD_IF_INPUT			12
++#define CMD_FOR				13
++#define CMD_REDRAW			14
++#define CMD_APPEAR			15
++#define CMD_STOP			16
++#define CMD_WIN				17
++#define CMD_TARGET			18
++#define CMD_REDGEMOFF			19
++#define CMD_GREENGEMOFF			20
++#define CMD_BLUEGEMOFF			21
++#define CMD_POPUP			22
++#define CMD_LET				23
++#define CMD_ADD				24
++#define CMD_SUB				25
++#define CMD_MUL				26
++#define CMD_DIV				27
++#define CMD_SWAPOVER			28
++#define CMD_SWAPUNDER			29
++#define CMD_GOTO			30
++#define CMD_CHANGEMAP			31
++#define CMD_PRINT			32
++#define CMD_INPUT			33
++
++// script values
++#define VAL_REGISTER			201
++#define VAL_XGUY			211
++#define VAL_YGUY			212
++#define VAL_LASTX			213
++#define VAL_LASTY			214
++#define VAL_FACING			215
++#define VAL_REDGEMS			216
++#define VAL_GREENGEMS			217
++#define VAL_BLUEGEMS			218
++#define VAL_YELLOWGEMS			219
++#define VAL_REDKEYS			220
++#define VAL_GREENKEYS			221
++#define VAL_BLUEKEYS			222
++#define VAL_INPUTVALUE			223
++#define VAL_XPOS			224
++#define VAL_YPOS			225
++#define VAL_MOVES			226
++#define VAL_HECTOMOVES			227
++#define VAL_WALKABLE			228
++#define VAL_DELTA			229
++#define VAL_UNDER			230
++#define VAL_OVER			231
++#define VAL_LASTPUSHED			232
++#define VAL_REDGEMON			233
++#define VAL_GREENGEMON			234
++#define VAL_BLUEGEMON			235
++
++static int dir_dx[4] = {  0, 1, 0, -1 };
++static int dir_dy[4] = { -1, 0, 1,  0 };
++
++// a value that can be set (a register, or one of the game's)
++struct ValueRef
++{
++  int kind;
++  int a, b;
++};
++
++// a plate pressed or released in this turn
++struct PlateNote
++{
++  int x, y;
++  boolean pressed;
++};
++
++static void RunScript(int, boolean, int, int);
++
++
++// ----------------------------------------------------------------------------
++// small helpers
++// ----------------------------------------------------------------------------
++
++static int Word16(int value)
++{
++  return (short)(value & 0xffff);
++}
++
++static int Clamp(int value, int min, int max)
++{
++  return (value < min ? min : value > max ? max : value);
++}
++
++static boolean IsGhost(void)
++{
++  return (pits.gem_in_use == PITS_GREEN &&
++	  pits.green_stage == PITS_GHOST_STAGE);
++}
++
++boolean HasScript_PITS(int nr)
++{
++  return (nr >= 0 && nr < PITS_MAX_SCRIPTS &&
++	  pits.file.script_start[nr] >= 0);
++}
++
++static boolean IsWalkable(int tile)
++{
++  return (tile >= 0 && tile <= 100 && pits.walkable[tile]);
++}
++
++static boolean OverIsFree(int x, int y)
++{
++  return (pits.over[x][y] == PITS_O_NOTHING || IsWalkable(pits.over[x][y]));
++}
++
++boolean CanEnter_PITS(int x, int y)
++{
++  if (!PITS_IN_ARRAY(x, y))
++    return FALSE;
++
++  return (OverIsFree(x, y) && IsWalkable(pits.under[x][y]));
++}
++
++static void AddArrow(int x, int y)
++{
++  // in the original, the list of these squares can't hold column 21
++  if (x < PITS_MIN || x >= PITS_MAX || y < PITS_MIN || y > PITS_MAX)
++    return;
++
++  if (pits.in_arrows[x][y])
++    return;
++
++  pits.arrows_x[pits.num_arrows] = x;
++  pits.arrows_y[pits.num_arrows] = y;
++  pits.num_arrows++;
++  pits.in_arrows[x][y] = TRUE;
++}
++
++static void ClearArrived(void)
++{
++  int x, y;
++
++  for (x = 0; x < PITS_SIZE; x++)
++    for (y = 0; y < PITS_SIZE; y++)
++      pits.arrived[x][y] = FALSE;
++}
++
++// the arrows and glass for the next turn: all of them, in reading order
++static void FindArrows(void)
++{
++  int x, y;
++
++  pits.num_arrows = 0;
++
++  for (x = 0; x < PITS_SIZE; x++)
++    for (y = 0; y < PITS_SIZE; y++)
++      pits.in_arrows[x][y] = FALSE;
++
++  for (y = PITS_MIN; y <= PITS_MAX; y++)
++    for (x = PITS_MIN; x <= PITS_MAX; x++)
++      if (PITS_IS_ARROW(pits.under[x][y]) || pits.under[x][y] == PITS_U_GLASS)
++	AddArrow(x, y);
++}
++
++static void SetUnder(int x, int y, int tile)
++{
++  pits.under[x][y] = tile;
++}
++
++static void PlaySound_PITS(int sound)
++{
++  pits.sounds |= (1 << sound);
++}
++
++
++// ----------------------------------------------------------------------------
++// the tile rules
++// ----------------------------------------------------------------------------
++
++static int PlainObject(int over)
++{
++  switch (over)
++  {
++    case PITS_O_BARREL_WATER:
++    case PITS_O_BARREL_HOLE:
++    case PITS_O_BARREL_HOME:
++      return PITS_O_BARREL;
++
++    case PITS_O_CRATE_HOME:
++      return PITS_O_CRATE;
++
++    case PITS_O_CHEST_HOME:
++      return PITS_O_CHEST;
++
++    default:
++      return over;
++  }
++}
++
++static void ApplyTileRules(int x, int y)
++{
++  int old_over, old_under, over, under;
++  int sound = -1;
++
++  if (!PITS_IN_ARRAY(x, y))
++    return;
++
++  old_over = pits.over[x][y];
++  old_under = pits.under[x][y];
++  over = PlainObject(old_over);
++  under = old_under;
++
++  if (over != PITS_O_BARREL && over != PITS_O_CRATE && over != PITS_O_CHEST)
++    return;
++
++  if (under == PITS_U_VOID)			// falls
++  {
++    over = PITS_O_NOTHING;
++  }
++  else if (PITS_IS_WATER(under))
++  {
++    if (over == PITS_O_BARREL)
++    {
++      over = PITS_O_BARREL_WATER;
++      sound = PITS_SND_WATER;
++    }
++    else if (over == PITS_O_CRATE)
++    {
++      over = PITS_O_NOTHING;
++      under = PITS_U_CRATE_WATER;
++      sound = PITS_SND_WATER;
++    }
++  }
++  else if (PITS_IS_LAVA(under) || PITS_IS_COOLING(under))
++  {
++    if (over == PITS_O_CHEST)
++    {
++      under = PITS_U_GLASS;
++      sound = PITS_SND_CRACK;
++    }
++    else
++    {
++      under = PITS_U_LAVA_COOLING_1;
++      sound = PITS_SND_LAVA;
++    }
++
++    over = PITS_O_NOTHING;
++  }
++  else if (under == PITS_U_HOLE)
++  {
++    if (over == PITS_O_BARREL)
++    {
++      over = PITS_O_BARREL_HOLE;
++      sound = PITS_SND_SPLINTER;
++    }
++    else
++    {
++      if (over == PITS_O_CRATE)
++	sound = PITS_SND_SPLINTER;
++
++      over = PITS_O_NOTHING;
++    }
++  }
++  else if (under == PITS_U_WOOD)
++  {
++    if (over == PITS_O_BARREL)
++    {
++      over = PITS_O_BARREL_HOLE;
++      sound = PITS_SND_SPLINTER;
++    }
++    else if (over == PITS_O_CRATE)
++    {
++      over = PITS_O_NOTHING;
++      under = PITS_U_HOLE;
++      sound = PITS_SND_SPLINTER;
++    }
++  }
++  else if (under == PITS_U_TARGET_BLUE && over == PITS_O_BARREL)
++  {
++    over = PITS_O_BARREL_HOME;
++  }
++  else if (under == PITS_U_TARGET_RED && over == PITS_O_CRATE)
++  {
++    over = PITS_O_CRATE_HOME;
++  }
++  else if (under == PITS_U_TARGET_GREEN && over == PITS_O_CHEST)
++  {
++    over = PITS_O_CHEST_HOME;
++  }
++
++  pits.over[x][y] = over;
++
++  if (under != old_under)
++    SetUnder(x, y, under);
++
++  // a sound only for a change (the rules are applied again every turn)
++  if (sound != -1 && (over != old_over || under != old_under))
++    PlaySound_PITS(sound);
++}
++
++// an object goes from one square to the next
++static void MoveObject(int x1, int y1, int x2, int y2, int dir)
++{
++  pits.over[x2][y2] = pits.over[x1][y1];
++  pits.over[x1][y1] = PITS_O_NOTHING;
++
++  ApplyTileRules(x1, y1);
++  ApplyTileRules(x2, y2);
++
++  pits.last_pushed[x2][y2] = dir;
++  pits.last_pushed[x1][y1] = PITS_NO_DIR;
++
++  // it takes no part in this turn's arrows and glass
++  pits.arrived[x2][y2] = TRUE;
++}
++
++// a square set by a script: its tile rules, and no last pushed
++static void ChangedByScript(int x, int y)
++{
++  // an arrow made by a script takes part in this turn already
++  if (PITS_IS_ARROW(pits.under[x][y]))
++    AddArrow(x, y);
++
++  ApplyTileRules(x, y);
++
++  pits.last_pushed[x][y] = PITS_NO_DIR;
++}
++
++
++// ----------------------------------------------------------------------------
++// counting the targets
++// ----------------------------------------------------------------------------
++
++static void CountTargets(int *targets, int *at_home)
++{
++  int x, y;
++
++  *targets = 0;
++  *at_home = 0;
++
++  for (y = 0; y < PITS_SIZE; y++)
++  {
++    for (x = 0; x < PITS_SIZE; x++)
++    {
++      if (PITS_IS_TARGET(pits.under[x][y]))
++	(*targets)++;
++
++      if (PITS_IS_AT_HOME(pits.over[x][y]))
++	(*at_home)++;
++    }
++  }
++}
++
++int getTargetsStillNeeded_PITS(void)
++{
++  int targets, at_home;
++
++  CountTargets(&targets, &at_home);
++
++  return MAX(0, targets - at_home);
++}
++
++void CheckWin_PITS(void)
++{
++  int targets, at_home;
++
++  CountTargets(&targets, &at_home);
++
++  if (targets > 0 && at_home >= targets)
++    pits.won = TRUE;
++}
++
++
++// ----------------------------------------------------------------------------
++// the level
++// ----------------------------------------------------------------------------
++
++static int FindScriptByName(char *name)
++{
++  int i;
++
++  for (i = 0; i < PITS_MAX_SCRIPTS; i++)
++    if (pits.file.script_start[i] >= 0 &&
++	strcasecmp(pits.file.script_name[i], name) == 0)
++      return i;
++
++  return -1;
++}
++
++void InitLevel_PITS(void)
++{
++  struct PitsFileInfo *file = &pits.file;
++  int x, y, i;
++
++  pits.px = PITS_MIN;
++  pits.py = PITS_MIN;
++
++  for (x = 0; x < PITS_SIZE; x++)
++  {
++    for (y = 0; y < PITS_SIZE; y++)
++    {
++      pits.under[x][y] = file->under[x][y];
++      pits.over[x][y] = file->over[x][y];
++      pits.last_pushed[x][y] = PITS_NO_DIR;
++      pits.in_arrows[x][y] = FALSE;
++
++      if (pits.over[x][y] == PITS_O_PLAYER)
++      {
++	pits.over[x][y] = PITS_O_NOTHING;
++	pits.px = x;
++	pits.py = y;
++      }
++    }
++  }
++
++  pits.lastx = pits.px;
++  pits.lasty = pits.py;
++  pits.facing = PITS_NORTH * 4;
++
++  for (i = 0; i <= 100; i++)
++    pits.walkable[i] = (i >= PITS_U_FLOOR && i <= PITS_U_GRASS);
++
++  pits.moves = 0;
++
++  for (i = 0; i < 4; i++)
++    pits.gems[i] = 0;
++  for (i = 0; i < 3; i++)
++    pits.keys[i] = 0;
++
++  pits.gem_in_use = PITS_NO_GEM;
++  pits.green_stage = 0;
++
++  for (i = 0; i < PITS_NUM_REGISTERS; i++)
++    pits.reg[i] = 0;
++
++  pits.xpos = 0;
++  pits.ypos = 0;
++  pits.input[0] = '\0';
++  pits.input_value = 0;
++
++  FindArrows();
++  ClearArrived();
++
++  pits.won = FALSE;
++
++  pits.script_intro  = FindScriptByName("Intro");
++  pits.script_master = FindScriptByName("Master");
++  pits.script_gem[PITS_RED]   = FindScriptByName("RedGem");
++  pits.script_gem[PITS_GREEN] = FindScriptByName("GreenGem");
++  pits.script_gem[PITS_BLUE]  = FindScriptByName("BlueGem");
++}
++
++static void PickUp(void)
++{
++  int x = pits.px, y = pits.py;
++  int under = pits.under[x][y];
++
++  if (IsGhost())
++    return;
++
++  if (under >= PITS_U_GEM_RED && under < PITS_U_GEM_YELLOW)
++    pits.gems[under - PITS_U_GEM_RED]++;
++  else if (under == PITS_U_GEM_YELLOW)
++    pits.gems[PITS_YELLOW] = 1;
++  else if (under >= PITS_U_KEY_RED && under <= PITS_U_KEY_BLUE)
++    pits.keys[under - PITS_U_KEY_RED]++;
++  else
++    return;
++
++  SetUnder(x, y, PITS_U_FLOOR);
++}
++
++void StartLevel_PITS(void)
++{
++  if (pits.script_intro >= 0)
++    RunScript(pits.script_intro, TRUE, 0, 0);
++
++  if (pits.script_master >= 0)
++    RunScript(pits.script_master, TRUE, 0, 0);
++
++  PickUp();
++}
++
++
++// ----------------------------------------------------------------------------
++// drawing's side effects: lava cooling, the frames moving on
++// ----------------------------------------------------------------------------
++
++void AnimStep_PITS(void)
++{
++  int vx0, vy0, ox, oy, cols, rows, scale;
++  int i, j;
++
++  getViewGeometry_PITS(pits.px, pits.py, &vx0, &vy0, &ox, &oy, &cols, &rows,
++		       &scale);
++
++  for (j = 0; j < rows; j++)
++  {
++    for (i = 0; i < cols; i++)
++    {
++      int x = vx0 + i, y = vy0 + j;
++      int frame = (pits.anim_counter + j * cols + i) & 3;
++
++      if (!PITS_IN_ARRAY(x, y) || frame != 1)
++	continue;
++
++      if (pits.under[x][y] == PITS_U_LAVA_COOLING_1)
++	pits.under[x][y] = PITS_U_LAVA_COOLING_2;
++      else if (pits.under[x][y] == PITS_U_LAVA_COOLING_2)
++	pits.under[x][y] = PITS_U_LAVA;
++    }
++  }
++
++  pits.anim_counter = (pits.anim_counter + cols * rows) & 3;
++
++  if (cols * rows > 0)
++    pits.sparkle = (pits.sparkle + 17) % (cols * rows);
++}
++
++
++// ----------------------------------------------------------------------------
++// the turn's checks
++// ----------------------------------------------------------------------------
++
++static void MoveByArrowsAndGlass(void)
++{
++  int i, x, y;
++
++  // the list is that of the last turn's end, and script-made arrows
++  for (i = 0; i < pits.num_arrows; i++)
++  {
++    int under, dir, nx, ny;
++    boolean on_glass;
++
++    x = pits.arrows_x[i];
++    y = pits.arrows_y[i];
++    under = pits.under[x][y];
++    on_glass = (under == PITS_U_GLASS);
++
++    if (pits.over[x][y] < PITS_O_BARREL || pits.arrived[x][y])
++      continue;
++
++    if (PITS_IS_ARROW(under))
++      dir = under - PITS_U_ARROW_UP;
++    else if (on_glass)
++      dir = pits.last_pushed[x][y];
++    else
++      continue;
++
++    if (dir < PITS_NORTH || dir > PITS_WEST)
++    {
++      pits.last_pushed[x][y] = PITS_NO_DIR;
++
++      continue;
++    }
++
++    nx = x + dir_dx[dir];
++    ny = y + dir_dy[dir];
++
++    if (PITS_IN_ARRAY(nx, ny) &&
++	(nx != pits.px || ny != pits.py || IsGhost()) &&
++	OverIsFree(nx, ny) &&
++	pits.under[nx][ny] != PITS_U_GRASS)
++    {
++      MoveObject(x, y, nx, ny, dir);
++
++      PlaySound_PITS(on_glass ? PITS_SND_GLASS : PITS_SND_MAGIC);
++    }
++    else if (on_glass)
++    {
++      pits.last_pushed[x][y] = PITS_NO_DIR;
++    }
++  }
++}
++
++void TurnChecks_PITS(void)
++{
++  static struct PlateNote notes[PITS_SIZE * PITS_SIZE];
++  int num_notes = 0;
++  int x, y, i;
++
++  // 1: the moves are read from the count when a script asks
++
++  // 2: what the player stands on
++  PickUp();
++
++  // 3: the scripts, switched on
++  if (pits.script_master >= 0)
++    RunScript(pits.script_master, TRUE, 0, 0);
++
++  if (pits.gem_in_use >= PITS_RED && pits.gem_in_use <= PITS_BLUE &&
++      pits.script_gem[pits.gem_in_use] >= 0)
++    RunScript(pits.script_gem[pits.gem_in_use], TRUE, 0, 0);
++
++  // 4: arrows and glass
++  MoveByArrowsAndGlass();
++
++  // 5: every square
++  for (y = PITS_MIN; y <= PITS_MAX; y++)
++  {
++    for (x = PITS_MIN; x <= PITS_MAX; x++)
++    {
++      int over = pits.over[x][y];
++      boolean player_here = (x == pits.px && y == pits.py);
++
++      if (PITS_IS_AT_HOME(over))
++	ApplyTileRules(x, y);
++
++      if (player_here)
++      {
++	if (pits.under[x][y] == PITS_U_PLATE_UP && !IsGhost())
++	{
++	  pits.under[x][y] = PITS_U_PLATE_DOWN;
++	  PlaySound_PITS(PITS_SND_PLATEON);
++
++	  notes[num_notes].x = x;
++	  notes[num_notes].y = y;
++	  notes[num_notes].pressed = TRUE;
++	  num_notes++;
++	}
++      }
++      else if (over == PITS_O_NOTHING)
++      {
++	if (pits.under[x][y] == PITS_U_PLATE_DOWN)
++	{
++	  notes[num_notes].x = x;
++	  notes[num_notes].y = y;
++	  notes[num_notes].pressed = FALSE;
++	  num_notes++;
++	}
++      }
++      else if (over >= PITS_O_BARREL_WATER && over < 53)
++      {
++	ApplyTileRules(x, y);
++
++	if (pits.over[x][y] != PITS_O_NOTHING &&
++	    pits.under[x][y] == PITS_U_PLATE_UP)
++	{
++	  pits.under[x][y] = PITS_U_PLATE_DOWN;
++	  PlaySound_PITS(PITS_SND_PLATEON);
++
++	  notes[num_notes].x = x;
++	  notes[num_notes].y = y;
++	  notes[num_notes].pressed = TRUE;
++	  num_notes++;
++	}
++      }
++    }
++  }
++
++  // 6: the plates noted, the last one first
++  for (i = num_notes - 1; i >= 0; i--)
++  {
++    int nr = pits.file.script_map[notes[i].x][notes[i].y];
++
++    if (notes[i].pressed)
++      PlaySound_PITS(PITS_SND_PLATEON);
++
++    if (nr != PITS_NO_SCRIPT)
++      RunScript(nr, notes[i].pressed, notes[i].x, notes[i].y);
++  }
++
++  // 7: the master script, switched off
++  if (pits.script_master >= 0)
++    RunScript(pits.script_master, FALSE, 0, 0);
++
++  FindArrows();
++  ClearArrived();
++
++  CheckWin_PITS();
++}
++
++
++// ----------------------------------------------------------------------------
++// the player
++// ----------------------------------------------------------------------------
++
++// the red and blue gems act on the square the player leaves
++static void GemsActOnSquareLeft(int x, int y, int dir)
++{
++  if (pits.gem_in_use == PITS_RED && pits.script_gem[PITS_RED] < 0)
++  {
++    int under = pits.under[x][y];
++
++    if (under == PITS_U_FLOOR || PITS_IS_ARROW(under))
++      SetUnder(x, y, PITS_U_ARROW_UP + dir);
++  }
++  else if (pits.gem_in_use == PITS_BLUE && pits.script_gem[PITS_BLUE] < 0)
++  {
++    int bx = x - dir_dx[dir];
++    int by = y - dir_dy[dir];
++
++    if (PITS_IN_ARRAY(bx, by) && pits.over[bx][by] >= PITS_O_BARREL_WATER)
++    {
++      pits.over[x][y] = pits.over[bx][by];
++      pits.over[bx][by] = PITS_O_NOTHING;
++
++      // not a way that glass knows: a pulled box doesn't slide
++      pits.last_pushed[x][y] = 4 + dir;
++      pits.last_pushed[bx][by] = PITS_NO_DIR;
++      pits.arrived[x][y] = TRUE;
++
++      ApplyTileRules(bx, by);
++      ApplyTileRules(x, y);
++    }
++
++    pits.gems[PITS_BLUE]--;
++    pits.gem_in_use = PITS_NO_GEM;
++  }
++}
++
++static void StepTo(int x, int y, int dir)
++{
++  pits.lastx = pits.px;
++  pits.lasty = pits.py;
++
++  GemsActOnSquareLeft(pits.px, pits.py, dir);
++
++  pits.px = x;
++  pits.py = y;
++
++  pits.walk_step = (pits.walk_step + 1) & 3;
++  pits.last_move_tick = pits.tick;
++}
++
++static void Push(int bx, int by, int dir)
++{
++  int cx = bx + dir_dx[dir];
++  int cy = by + dir_dy[dir];
++  int box = pits.over[bx][by];
++  boolean moved = FALSE;
++
++  if (!pits.pushing || pits.push_dir != dir)
++  {
++    pits.pushing = TRUE;
++    pits.push_dir = dir;
++    pits.push_tick = pits.tick;
++
++    return;
++  }
++
++  if (pits.tick - pits.push_tick < PITS_PUSH_TICKS)
++    return;
++
++  pits.push_tick = pits.tick;
++
++  if (PITS_IN_ARRAY(cx, cy) &&
++      ((OverIsFree(cx, cy) && pits.under[cx][cy] != PITS_U_GRASS) ||
++       PITS_IS_CHEST(pits.over[cx][cy])))
++  {
++    if (PITS_IS_CHEST(pits.over[cx][cy]))
++    {
++      pits.over[cx][cy] = PITS_O_NOTHING;
++      SetUnder(cx, cy, PITS_U_GLASS);
++      PlaySound_PITS(PITS_SND_CRACK);
++    }
++
++    MoveObject(bx, by, cx, cy, dir);
++    PlaySound_PITS(PITS_SND_SCRAPE);
++
++    moved = TRUE;
++  }
++  else if (PITS_IS_CHEST(box))
++  {
++    pits.over[bx][by] = PITS_O_NOTHING;
++    SetUnder(bx, by, PITS_U_GLASS);
++    pits.last_pushed[bx][by] = PITS_NO_DIR;
++    PlaySound_PITS(PITS_SND_CRACK);
++
++    moved = TRUE;
++  }
++
++  if (!moved)
++    return;
++
++  pits.moves++;
++
++  if (pits.over[bx][by] == PITS_O_NOTHING && IsWalkable(pits.under[bx][by]))
++    StepTo(bx, by, dir);
++
++  TurnChecks_PITS();
++}
++
++static void StopWalking(void)
++{
++  pits.walking = FALSE;
++}
++
++void TryStep_PITS(int dir)
++{
++  int x = pits.px + dir_dx[dir];
++  int y = pits.py + dir_dy[dir];
++  int over;
++
++  pits.facing = dir * 4;
++
++  if (!PITS_IN_PIT(x, y))
++  {
++    pits.pushing = FALSE;
++    StopWalking();
++
++    return;
++  }
++
++  if (IsGhost() || CanEnter_PITS(x, y))
++  {
++    if (pits.pushing)
++    {
++      pits.pushing = FALSE;
++
++      return;
++    }
++
++    StepTo(x, y, dir);
++    pits.moves++;
++
++    TurnChecks_PITS();
++
++    return;
++  }
++
++  over = pits.over[x][y];
++
++  if (OverIsFree(x, y))		// the ground can't be entered
++  {
++    pits.pushing = FALSE;
++    StopWalking();
++
++    return;
++  }
++
++  if (pits.walking)
++  {
++    int wx = pits.walk_x, wy = pits.walk_y;
++
++    pits.pushing = FALSE;
++    StopWalking();
++
++    if (abs(wx - pits.px) + abs(wy - pits.py) > 1)
++      FindWay_PITS(wx, wy);
++
++    return;
++  }
++
++  if (PITS_IS_BOX(over))
++  {
++    Push(x, y, dir);
++  }
++  else if (over == PITS_O_SIGN)
++  {
++    pits.pushing = FALSE;
++
++    if (pits.bump_ready && pits.file.script_map[x][y] != PITS_NO_SCRIPT)
++    {
++      pits.bump_ready = FALSE;
++      RunScript(pits.file.script_map[x][y], TRUE, x, y);
++    }
++  }
++  else if (over == PITS_O_SWITCH_OFF || over == PITS_O_SWITCH_ON)
++  {
++    pits.pushing = FALSE;
++
++    if (pits.bump_ready)
++    {
++      boolean on = (over == PITS_O_SWITCH_OFF);
++
++      pits.bump_ready = FALSE;
++      pits.over[x][y] = (on ? PITS_O_SWITCH_ON : PITS_O_SWITCH_OFF);
++      PlaySound_PITS(on ? PITS_SND_PLATEON : PITS_SND_PLATEOFF);
++
++      if (pits.file.script_map[x][y] != PITS_NO_SCRIPT)
++	RunScript(pits.file.script_map[x][y], on, x, y);
++    }
++  }
++  else
++  {
++    pits.pushing = FALSE;
++  }
++}
++
++void Wait_PITS(void)
++{
++  pits.pushing = FALSE;
++
++  TurnChecks_PITS();
++
++  pits.moves++;
++}
++
++
++// ----------------------------------------------------------------------------
++// walking to a square
++// ----------------------------------------------------------------------------
++
++boolean FindWay_PITS(int tx, int ty)
++{
++  static int queue_x[PITS_SIZE * PITS_SIZE], queue_y[PITS_SIZE * PITS_SIZE];
++  static int search_dirs[4] = { PITS_SOUTH, PITS_WEST, PITS_NORTH, PITS_EAST };
++  int head = 0, tail = 0;
++  int x, y, i;
++
++  pits.walking = FALSE;
++
++  if (!PITS_IN_PIT(tx, ty) || (tx == pits.px && ty == pits.py))
++    return FALSE;
++
++  for (x = 0; x < PITS_SIZE; x++)
++    for (y = 0; y < PITS_SIZE; y++)
++      pits.walk_next[x][y] = PITS_NO_DIR;
++
++  // spread out from the destination; walk_next is the way back to it
++  pits.walk_next[tx][ty] = 4;
++  queue_x[tail] = tx;
++  queue_y[tail] = ty;
++  tail++;
++
++  while (head < tail)
++  {
++    int cx = queue_x[head];
++    int cy = queue_y[head];
++
++    head++;
++
++    for (i = 0; i < 4; i++)
++    {
++      int dir = search_dirs[i];
++      int nx = cx + dir_dx[dir];
++      int ny = cy + dir_dy[dir];
++
++      if (!PITS_IN_PIT(nx, ny) || pits.walk_next[nx][ny] != PITS_NO_DIR)
++	continue;
++
++      if (nx == pits.px && ny == pits.py)
++      {
++	pits.walk_next[nx][ny] = (dir + 2) % 4;
++	pits.walking = TRUE;
++	pits.walk_x = tx;
++	pits.walk_y = ty;
++
++	return TRUE;
++      }
++
++      if (!IsGhost() && !CanEnter_PITS(nx, ny))
++	continue;
++
++      pits.walk_next[nx][ny] = (dir + 2) % 4;
++      queue_x[tail] = nx;
++      queue_y[tail] = ny;
++      tail++;
++    }
++  }
++
++  return FALSE;
++}
++
++
++// ----------------------------------------------------------------------------
++// gems and keys
++// ----------------------------------------------------------------------------
++
++static void PutGemAway(int gem)
++{
++  if (pits.gem_in_use != gem)
++    return;
++
++  if (gem == PITS_GREEN)
++  {
++    FinishGhost_PITS();
++
++    return;
++  }
++
++  pits.gems[gem]--;
++  pits.gem_in_use = PITS_NO_GEM;
++
++  if (pits.script_gem[gem] >= 0)
++    RunScript(pits.script_gem[gem], FALSE, 0, 0);
++}
++
++// the ghost becomes the player again, where it can
++void FinishGhost_PITS(void)
++{
++  int x = pits.px, y = pits.py;
++  int over = pits.over[x][y];
++  boolean has_script = (pits.script_gem[PITS_GREEN] >= 0);
++
++  if (!IsGhost())
++    return;
++
++  if (!IsWalkable(pits.under[x][y]))
++    return;
++
++  if (!(over == PITS_O_NOTHING ||
++	(pits.over[pits.green_x][pits.green_y] == PITS_O_NOTHING &&
++	 (over >= PITS_O_BARREL_WATER || IsWalkable(over))) ||
++	has_script))
++    return;
++
++  if (!has_script && over != PITS_O_NOTHING && !IsWalkable(over))
++  {
++    pits.over[pits.green_x][pits.green_y] = over;
++    pits.over[x][y] = PITS_O_NOTHING;
++    pits.arrived[pits.green_x][pits.green_y] = TRUE;
++
++    ApplyTileRules(x, y);
++    ApplyTileRules(pits.green_x, pits.green_y);
++  }
++
++  pits.facing = PITS_SOUTH * 4;
++
++  // the pictures of the change back
++  pits.change_dir = -1;
++  pits.change_stage = PITS_GHOST_STAGE;
++  pits.change_turns = 0;
++
++  // not a ghost any more for what follows
++  pits.green_stage = PITS_GHOST_STAGE - 1;
++
++  PickUp();
++  TurnChecks_PITS();
++
++  pits.gems[PITS_GREEN]--;
++  pits.gem_in_use = PITS_NO_GEM;
++  pits.green_stage = 0;
++
++  if (pits.script_gem[PITS_GREEN] >= 0)
++    RunScript(pits.script_gem[PITS_GREEN], FALSE, 0, 0);
++}
++
++void UseGem_PITS(int gem)
++{
++  if (gem == PITS_YELLOW)
++    return;				// it only shows the whole pit
++
++  if (pits.gem_in_use == gem)
++  {
++    PutGemAway(gem);
++
++    return;
++  }
++
++  if (pits.gem_in_use != PITS_NO_GEM || pits.gems[gem] <= 0)
++    return;
++
++  pits.gem_in_use = gem;
++  pits.pushing = FALSE;
++  PlaySound_PITS(PITS_SND_MAGIC);
++
++  if (gem == PITS_GREEN)
++  {
++    pits.green_stage = 1;
++    pits.green_x = pits.px;
++    pits.green_y = pits.py;
++
++    // the pictures of the change: facing south, then five steps
++    pits.change_dir = 1;
++    pits.change_stage = 1;
++    pits.change_turns = (pits.facing == PITS_NORTH * 4 ? 2 :
++			 pits.facing == PITS_SOUTH * 4 ? 0 : 1);
++  }
++
++  if (pits.script_gem[gem] >= 0)
++    RunScript(pits.script_gem[gem], TRUE, 0, 0);
++}
++
++void UseKey_PITS(int key)
++{
++  int x = pits.px, y = pits.py;
++
++  if (pits.keys[key] <= 0 || pits.under[x][y] != PITS_U_LOCK_RED + key)
++    return;
++
++  pits.keys[key]--;
++  SetUnder(x, y, PITS_U_PLATE_DOWN);
++
++  if (pits.file.script_map[x][y] != PITS_NO_SCRIPT)
++    RunScript(pits.file.script_map[x][y], TRUE, x, y);
++}
++
++
++// ----------------------------------------------------------------------------
++// the player's picture
++// ----------------------------------------------------------------------------
++
++int getPlayerShape_PITS(void)
++{
++  static int step_offset[4] = { 0, 16, 0, 32 };
++  int step = pits.walk_step;
++
++  if (pits.tick - pits.last_move_tick >= PITS_IDLE_TICKS)
++    step = 0;
++
++  // changing back from a ghost
++  if (pits.change_dir < 0 && pits.change_stage >= 2)
++    return 228 + (pits.change_stage - 2) * 4;
++
++  // changing to a ghost, or a ghost (stage 7)
++  if (pits.gem_in_use == PITS_GREEN && pits.green_stage >= 2)
++    return 228 + (pits.green_stage - 2) * 4;
++
++  if (pits.gem_in_use != PITS_NO_GEM)
++    return 148 + pits.facing + step_offset[step];
++
++  if (pits.pushing)
++    return 196 + pits.facing + (step & 1) * 16;
++
++  return 100 + pits.facing + step_offset[step];
++}
++
++boolean IsGhost_PITS(void)
++{
++  return IsGhost();
++}
++
++
++// ----------------------------------------------------------------------------
++// the scripts
++// ----------------------------------------------------------------------------
++
++static unsigned char *code;
++static int code_size;
++static boolean script_ended;
++
++static int CodeByte(int *pc)
++{
++  int value = (*pc < code_size ? code[*pc] : CMD_END);
++
++  (*pc)++;
++
++  return value;
++}
++
++static int CodeWord(int *pc)
++{
++  int high = CodeByte(pc);
++
++  return (high << 8) | CodeByte(pc);
++}
++
++static int EvalValue(int *);
++
++static void ParseRef(int *pc, struct ValueRef *ref)
++{
++  ref->kind = CodeByte(pc);
++  ref->a = 0;
++  ref->b = 0;
++
++  if (ref->kind == VAL_WALKABLE)
++  {
++    ref->a = EvalValue(pc);
++  }
++  else if (ref->kind >= VAL_DELTA && ref->kind <= VAL_LASTPUSHED)
++  {
++    ref->a = EvalValue(pc);
++    ref->b = EvalValue(pc);
++  }
++}
++
++static int GetRef(struct ValueRef *ref)
++{
++  int kind = ref->kind;
++  int x, y;
++
++  if (kind <= 100)
++    return kind;
++  if (kind <= 200)
++    return kind - 201;
++  if (kind < VAL_REGISTER + PITS_NUM_REGISTERS)
++    return pits.reg[kind - VAL_REGISTER];
++
++  switch (kind)
++  {
++    case VAL_XGUY:		return pits.px;
++    case VAL_YGUY:		return pits.py;
++    case VAL_LASTX:		return pits.lastx;
++    case VAL_LASTY:		return pits.lasty;
++    case VAL_FACING:		return pits.facing;
++    case VAL_REDGEMS:		return pits.gems[PITS_RED];
++    case VAL_GREENGEMS:		return pits.gems[PITS_GREEN];
++    case VAL_BLUEGEMS:		return pits.gems[PITS_BLUE];
++    case VAL_YELLOWGEMS:	return (pits.gems[PITS_YELLOW] ? -1 : 0);
++    case VAL_REDKEYS:		return pits.keys[PITS_RED];
++    case VAL_GREENKEYS:		return pits.keys[PITS_GREEN];
++    case VAL_BLUEKEYS:		return pits.keys[PITS_BLUE];
++    case VAL_INPUTVALUE:	return pits.input_value;
++    case VAL_XPOS:		return pits.xpos;
++    case VAL_YPOS:		return pits.ypos;
++    case VAL_MOVES:		return pits.moves % 100;
++    case VAL_HECTOMOVES:	return pits.moves / 100;
++
++    case VAL_WALKABLE:
++      return (IsWalkable(MAX(0, ref->a)) ? 1 : 0);
++
++    case VAL_DELTA:
++      return Word16(ref->a + ref->b);
++
++    case VAL_UNDER:
++    case VAL_OVER:
++    case VAL_LASTPUSHED:
++      x = Clamp(ref->a, PITS_MIN, PITS_MAX);
++      y = Clamp(ref->b, PITS_MIN, PITS_MAX);
++
++      if (kind == VAL_UNDER)
++	return pits.under[x][y];
++
++      if (kind == VAL_LASTPUSHED)
++	return pits.last_pushed[x][y];
++
++      if (x == pits.px && y == pits.py &&
++	  (!IsGhost() || pits.script_gem[PITS_GREEN] >= 0))
++	return PITS_O_PLAYER;
++
++      return pits.over[x][y];
++
++    case VAL_REDGEMON:
++      return (pits.gem_in_use == PITS_RED ? 1 : 0);
++
++    case VAL_GREENGEMON:
++      return (pits.gem_in_use == PITS_GREEN ? pits.green_stage : 0);
++
++    case VAL_BLUEGEMON:
++      return (pits.gem_in_use == PITS_BLUE ? 1 : 0);
++
++    default:
++      return 0;
++  }
++}
++
++static void SetRef(struct ValueRef *ref, int value)
++{
++  int kind = ref->kind;
++  int x, y;
++
++  value = Word16(value);
++
++  if (kind <= 200)
++    return;				// a number
++
++  if (kind < VAL_REGISTER + PITS_NUM_REGISTERS)
++  {
++    pits.reg[kind - VAL_REGISTER] = value;
++
++    return;
++  }
++
++  switch (kind)
++  {
++    case VAL_XGUY:		pits.px = Clamp(value, 0, PITS_SIZE - 1);	break;
++    case VAL_YGUY:		pits.py = Clamp(value, 0, PITS_SIZE - 1);	break;
++    case VAL_LASTX:		pits.lastx = value;				break;
++    case VAL_LASTY:		pits.lasty = value;				break;
++    case VAL_FACING:		pits.facing = value & 12;			break;
++    case VAL_REDGEMS:		pits.gems[PITS_RED] = value;			break;
++    case VAL_GREENGEMS:		pits.gems[PITS_GREEN] = value;			break;
++    case VAL_BLUEGEMS:		pits.gems[PITS_BLUE] = value;			break;
++    case VAL_YELLOWGEMS:	pits.gems[PITS_YELLOW] = (value != 0);		break;
++    case VAL_REDKEYS:		pits.keys[PITS_RED] = value;			break;
++    case VAL_GREENKEYS:		pits.keys[PITS_GREEN] = value;			break;
++    case VAL_BLUEKEYS:		pits.keys[PITS_BLUE] = value;			break;
++    case VAL_INPUTVALUE:	pits.input_value = value;			break;
++    case VAL_XPOS:		pits.xpos = value;				break;
++    case VAL_YPOS:		pits.ypos = value;				break;
++
++    case VAL_MOVES:
++      pits.moves = (pits.moves / 100) * 100 + value;
++      break;
++
++    case VAL_HECTOMOVES:
++      pits.moves = value * 100 + pits.moves % 100;
++      break;
++
++    case VAL_WALKABLE:
++      if (ref->a <= 100)
++	pits.walkable[MAX(0, ref->a)] = (value != 0);
++      break;
++
++    case VAL_UNDER:
++    case VAL_OVER:
++    case VAL_LASTPUSHED:
++      x = Clamp(ref->a, PITS_MIN, PITS_MAX);
++      y = Clamp(ref->b, PITS_MIN, PITS_MAX);
++
++      if (kind == VAL_LASTPUSHED)
++      {
++	pits.last_pushed[x][y] = value;
++
++	break;
++      }
++
++      if (kind == VAL_UNDER)
++	pits.under[x][y] = Clamp(value, 0, 100);
++      else
++	pits.over[x][y] = Clamp(value, 0, 100);
++
++      ChangedByScript(x, y);
++      break;
++
++    default:
++      break;
++  }
++}
++
++static int EvalValue(int *pc)
++{
++  struct ValueRef ref;
++
++  ParseRef(pc, &ref);
++
++  return GetRef(&ref);
++}
++
++static void ChangeMap(int x, int y, int tile)
++{
++  if (!PITS_IN_ARRAY(x, y) || tile < -3 || tile > 100)
++    return;
++
++  if (tile == -1 || tile == -3)
++    pits.under[x][y] = PITS_U_VOID;
++  if (tile == -2 || tile == -3)
++    pits.over[x][y] = PITS_O_NOTHING;
++
++  if ((tile >= 0 && tile < PITS_U_FLOOR) || tile == PITS_O_PLAYER)
++    pits.over[x][y] = PlainObject(tile);
++  else if (tile >= PITS_U_FLOOR)
++    pits.under[x][y] = tile;
++
++  ChangedByScript(x, y);
++}
++
++static void Swap(int x1, int y1, int x2, int y2, boolean over)
++{
++  int tmp;
++
++  if (!PITS_IN_PIT(x1, y1) || !PITS_IN_PIT(x2, y2))
++    return;
++
++  if (over)
++  {
++    tmp = pits.over[x1][y1];
++    pits.over[x1][y1] = pits.over[x2][y2];
++    pits.over[x2][y2] = tmp;
++
++    if (pits.px == x1 && pits.py == y1)
++    {
++      pits.px = x2;
++      pits.py = y2;
++    }
++    else if (pits.px == x2 && pits.py == y2)
++    {
++      pits.px = x1;
++      pits.py = y1;
++    }
++  }
++  else
++  {
++    tmp = pits.under[x1][y1];
++    pits.under[x1][y1] = pits.under[x2][y2];
++    pits.under[x2][y2] = tmp;
++
++    if (PITS_IS_ARROW(pits.under[x1][y1]))
++      AddArrow(x1, y1);
++    if (PITS_IS_ARROW(pits.under[x2][y2]))
++      AddArrow(x2, y2);
++  }
++
++  tmp = pits.last_pushed[x1][y1];
++  pits.last_pushed[x1][y1] = pits.last_pushed[x2][y2];
++  pits.last_pushed[x2][y2] = tmp;
++
++  ApplyTileRules(x1, y1);
++  ApplyTileRules(x2, y2);
++}
++
++static void ShowScriptText(int pc, int length)
++{
++  char *text = checked_calloc(length + 1);
++  int i;
++
++  for (i = 0; i < length && pc + i < code_size; i++)
++    text[i] = code[pc + i];
++
++  ShowLevelText_PITS(text);
++
++  free(text);
++}
++
++// TARGET: the player points at a square (asked outside the frame, in
++// pits_main.c); its x and y, or 0, 0 if it isn't in the pit
++static void Target(void)
++{
++  int x, y;
++
++  AnswerTarget_PITS(&x, &y);
++
++  if (!PITS_IN_PIT(x, y))
++    x = y = 0;
++
++  pits.xpos = x;
++  pits.ypos = y;
++}
++
++// INPUT: the line the player types, and the number it starts with
++static void Input(void)
++{
++  char *p = pits.input;
++  int sign = 1, value = 0;
++
++  AnswerInput_PITS(pits.input);
++
++  if (*p == '-')
++  {
++    sign = -1;
++    p++;
++  }
++
++  while (*p >= '0' && *p <= '9')
++    value = Word16(value * 10 + (*p++ - '0'));
++
++  pits.input_value = Word16(sign * value);
++}
++
++static boolean InputStartsWith(int pc, int length)
++{
++  int i;
++
++  if (length > (int)strlen(pits.input))
++    return FALSE;
++
++  for (i = 0; i < length; i++)
++    if (tolower((unsigned char)pits.input[i]) !=
++	tolower(pc + i < code_size ? code[pc + i] : 0))
++      return FALSE;
++
++  return TRUE;
++}
++
++static void RunScript(int nr, boolean on, int x, int y)
++{
++  struct
++  {
++    int ref_pc;
++    int to;
++    boolean up;
++    int body;
++  } loops[SCRIPT_MAX_LOOPS];
++  int num_loops = 0;
++  int steps = 0;
++  int pc;
++
++  if (!HasScript_PITS(nr))
++    return;
++
++  code = pits.file.code;
++  code_size = pits.file.code_size;
++
++  pc = pits.file.script_start[nr];
++  pits.xpos = x;
++  pits.ypos = y;
++  script_ended = FALSE;
++
++  while (!script_ended && pc < code_size && steps++ < SCRIPT_MAX_STEPS)
++  {
++    int command = CodeByte(&pc);
++    struct ValueRef ref;
++    int a, b, c, d, jump_pc, jump, length, value;
++    boolean condition;
++
++    switch (command)
++    {
++      case CMD_END:
++      case CMD_STOP:
++	script_ended = TRUE;
++	break;
++
++      case CMD_WIN:
++	pits.won = TRUE;
++	script_ended = TRUE;
++	break;
++
++      case CMD_ENDIF:
++	break;
++
++      case CMD_NEXT:
++	if (num_loops == 0)
++	  break;
++
++	{
++	  int ref_pc = loops[num_loops - 1].ref_pc;
++
++	  ParseRef(&ref_pc, &ref);
++	}
++
++	value = GetRef(&ref);
++
++	if (loops[num_loops - 1].up ? value >= loops[num_loops - 1].to :
++	    value <= loops[num_loops - 1].to)
++	{
++	  num_loops--;
++	}
++	else
++	{
++	  SetRef(&ref, value + (loops[num_loops - 1].up ? 1 : -1));
++	  pc = loops[num_loops - 1].body;
++	}
++	break;
++
++      case CMD_ELSE:
++	jump_pc = pc;
++	jump = CodeWord(&pc);
++	pc = jump_pc + jump;
++	break;
++
++      case CMD_SWITCHOFF:
++	if (on)
++	  script_ended = TRUE;
++	break;
++
++      case CMD_SWITCHON:
++	jump_pc = pc;
++	jump = CodeWord(&pc);
++
++	if (!on)
++	  pc = jump_pc + jump + 1;	// just after its SWITCHOFF
++	break;
++
++      case CMD_IF_EQ:
++      case CMD_IF_EQ + 1:
++      case CMD_IF_EQ + 2:
++      case CMD_IF_EQ + 3:
++      case CMD_IF_EQ + 4:
++      case CMD_IF_NE:
++      case CMD_IF_INPUT:
++	if (command == CMD_IF_INPUT)
++	{
++	  length = CodeWord(&pc);
++	  jump_pc = pc;
++	  jump = CodeWord(&pc);
++	  condition = InputStartsWith(pc, length);
++	  pc += length;
++	}
++	else
++	{
++	  a = EvalValue(&pc);
++	  b = EvalValue(&pc);
++	  jump_pc = pc;
++	  jump = CodeWord(&pc);
++
++	  condition = (command == CMD_IF_EQ     ? a == b :
++		       command == CMD_IF_EQ + 1 ? a <  b :
++		       command == CMD_IF_EQ + 2 ? a >  b :
++		       command == CMD_IF_EQ + 3 ? a <= b :
++		       command == CMD_IF_EQ + 4 ? a >= b :
++		       a != b);
++	}
++
++	if (!condition)
++	{
++	  pc = jump_pc + jump;
++
++	  // to its ELSE: what follows it runs
++	  if (pc < code_size && code[pc] == CMD_ELSE)
++	    pc += 3;
++	}
++	break;
++
++      case CMD_FOR:
++	{
++	  int ref_pc = pc;
++
++	  ParseRef(&pc, &ref);
++	  a = EvalValue(&pc);
++	  b = EvalValue(&pc);
++	  CodeWord(&pc);			// the jump past its NEXT
++
++	  SetRef(&ref, a);
++
++	  if (num_loops < SCRIPT_MAX_LOOPS)
++	  {
++	    loops[num_loops].ref_pc = ref_pc;
++	    loops[num_loops].to = b;
++	    loops[num_loops].up = (b > a);
++	    loops[num_loops].body = pc;
++	    num_loops++;
++	  }
++	}
++	break;
++
++      case CMD_REDRAW:
++	SnapshotView_PITS();
++	break;
++
++      case CMD_APPEAR:
++	SnapshotView_PITS();
++	PlaySound_PITS(PITS_SND_MAGIC);
++	break;
++
++      case CMD_TARGET:
++	Target();
++	break;
++
++      case CMD_REDGEMOFF:
++      case CMD_GREENGEMOFF:
++      case CMD_BLUEGEMOFF:
++	{
++	  int gem = command - CMD_REDGEMOFF;
++	  int save_xpos = pits.xpos, save_ypos = pits.ypos;
++	  unsigned char *save_code = code;
++
++	  // putting a gem away may run other scripts
++	  PutGemAway(gem);
++
++	  code = save_code;
++	  code_size = pits.file.code_size;
++	  pits.xpos = save_xpos;
++	  pits.ypos = save_ypos;
++	  script_ended = FALSE;
++	}
++	break;
++
++      case CMD_POPUP:
++	if (PITS_IN_ARRAY(pits.xpos, pits.ypos) &&
++	    (pits.under[pits.xpos][pits.ypos] == PITS_U_PLATE_DOWN ||
++	     pits.under[pits.xpos][pits.ypos] == PITS_U_PLATE_UP))
++	  pits.under[pits.xpos][pits.ypos] = PITS_U_PLATE_UP;
++
++	PlaySound_PITS(PITS_SND_PLATEOFF);
++	break;
++
++      case CMD_LET:
++      case CMD_ADD:
++      case CMD_SUB:
++      case CMD_MUL:
++      case CMD_DIV:
++	ParseRef(&pc, &ref);
++	b = EvalValue(&pc);
++
++	if (command == CMD_LET)
++	{
++	  value = b;
++	}
++	else
++	{
++	  a = GetRef(&ref);
++
++	  value = (command == CMD_ADD ? a + b :
++		   command == CMD_SUB ? a - b :
++		   command == CMD_MUL ? a * b :
++		   b == 0 ? 0 : a / b);
++	}
++
++	SetRef(&ref, value);
++	break;
++
++      case CMD_SWAPOVER:
++      case CMD_SWAPUNDER:
++      case CMD_GOTO:
++	a = EvalValue(&pc);
++	b = EvalValue(&pc);
++	c = EvalValue(&pc);
++	d = EvalValue(&pc);
++
++	if (command != CMD_GOTO)
++	{
++	  Swap(a, b, c, d, command == CMD_SWAPOVER);
++
++	  break;
++	}
++
++	if (!PITS_IN_PIT(a, b) ||
++	    !HasScript_PITS(pits.file.script_map[a][b]))
++	{
++	  script_ended = TRUE;
++
++	  break;
++	}
++
++	pc = pits.file.script_start[pits.file.script_map[a][b]];
++	pits.xpos = c;
++	pits.ypos = d;
++	num_loops = 0;
++	break;
++
++      case CMD_CHANGEMAP:
++	length = CodeWord(&pc);
++	jump_pc = pc + length;
++
++	while (pc < jump_pc)
++	{
++	  a = EvalValue(&pc);
++	  b = EvalValue(&pc);
++	  c = EvalValue(&pc);
++
++	  ChangeMap(a, b, c);
++	}
++
++	pc = jump_pc;
++	break;
++
++      case CMD_PRINT:
++      case CMD_INPUT:
++	length = CodeWord(&pc);
++	ShowScriptText(pc, length);
++	pc += length;
++
++	if (command == CMD_INPUT)
++	  Input();
++	break;
++
++      default:
++	script_ended = TRUE;
++	break;
++    }
++  }
++}
+diff --git a/src/game_pits/pits_main.c b/src/game_pits/pits_main.c
+new file mode 100644
+index 0000000..9111ec2
+--- /dev/null
++++ b/src/game_pits/pits_main.c
+@@ -0,0 +1,1017 @@
++// ============================================================================
++// The Puzzle Pits engine for Rocks'n'Diamonds
++// ----------------------------------------------------------------------------
++// Written from the description of the game in PITS-RULES.md and of its level
++// files in PIT-FORMAT.md.
++// ----------------------------------------------------------------------------
++// pits_main.c: the level files, and the game as R'n'D runs it
++// ============================================================================
++
++#include <setjmp.h>
++
++#include "pits_main.h"
++
++
++#define PITS_MAGIC			0x0895
++
++// R'n'D's envelope is 30 by 20, but a line of 30 there wraps by itself, and
++// its end of line then gives an empty line: a line here is one less
++#define TEXT_COLUMNS			29
++#define TEXT_LINES			20
++
++struct GameInfo_PITS game_pits;
++struct LevelInfo_PITS native_pits_level;
++
++struct PitsInfo pits;
++struct PitsViewInfo pits_view;
++struct PitsPromptInfo pits_prompt;
++
++static struct PitsInfo pits_frame_start;
++static jmp_buf ask_jump;
++
++// the typing room's keys
++static char *room_keys[PITS_ROOM_ROWS] =
++{
++  "1234567890",
++  "QWERTYUIOP",
++  "ASDFGHJKL<",
++  "ZXCVBNM >>",
++};
++
++static boolean quiet_text = FALSE;
++
++
++// ----------------------------------------------------------------------------
++// reading a level file
++// ----------------------------------------------------------------------------
++
++struct FileReader
++{
++  unsigned char *data;
++  int size;
++  int pos;
++  boolean error;
++};
++
++static int ReadByte(struct FileReader *reader)
++{
++  if (reader->pos >= reader->size)
++  {
++    reader->error = TRUE;
++
++    return 0;
++  }
++
++  return reader->data[reader->pos++];
++}
++
++static int ReadWord(struct FileReader *reader)
++{
++  int high = ReadByte(reader);
++
++  return (high << 8) | ReadByte(reader);
++}
++
++// a string: its length XOR 22, then its bytes XOR "Mindy"
++static void ReadString(struct FileReader *reader, char *string, int max_length)
++{
++  static char *key = "Mindy";
++  int length = ReadWord(reader) ^ 22;
++  int i;
++
++  for (i = 0; i < length; i++)
++  {
++    int c = ReadByte(reader) ^ key[i % 5];
++
++    if (i < max_length)
++      string[i] = c;
++  }
++
++  string[MIN(length, max_length)] = '\0';
++}
++
++static void FillMap(int map[PITS_SIZE][PITS_SIZE], int fill)
++{
++  int x, y;
++
++  for (x = 0; x < PITS_SIZE; x++)
++    for (y = 0; y < PITS_SIZE; y++)
++      map[x][y] = fill;
++}
++
++// a map: the inner squares of map[x][y], run-length coded
++static void ReadMap(struct FileReader *reader, int map[PITS_SIZE][PITS_SIZE],
++		    int fill)
++{
++  int cell = PITS_SIZE + 1;
++  int end = PITS_SIZE * PITS_SIZE - PITS_SIZE - 1;
++
++  FillMap(map, fill);
++
++  while (cell < end && !reader->error)
++  {
++    int count = ReadByte(reader);
++    int tile = ReadByte(reader);
++
++    while (count-- > 0 && cell < end)
++    {
++      map[cell / PITS_SIZE][cell % PITS_SIZE] = tile;
++      cell++;
++
++      // skip the edge squares at the end of a row and the start of the next
++      if (cell % PITS_SIZE == PITS_SIZE - 1)
++	cell += 2;
++    }
++  }
++}
++
++boolean ReadLevelFile_PITS(unsigned char *data, int size,
++			   struct PitsFileInfo *file, boolean level_info_only)
++{
++  struct FileReader reader = { data, size, 0, FALSE };
++  int num_scripts, code_size;
++  int i;
++
++  checked_free(file->code);
++  file->code = NULL;
++  file->code_size = 0;
++
++  for (i = 0; i < PITS_MAX_SCRIPTS; i++)
++  {
++    file->script_start[i] = -1;
++    file->script_name[i][0] = '\0';
++  }
++
++  if (ReadWord(&reader) != PITS_MAGIC)
++    return FALSE;
++
++  ReadString(&reader, file->password, PITS_PASSWORD_LEN);
++  ReadString(&reader, file->title, PITS_TITLE_LEN);
++  ReadMap(&reader, file->under, 0);
++  ReadMap(&reader, file->over, 0);
++
++  if (reader.error)
++    return FALSE;
++
++  num_scripts = ReadWord(&reader);
++
++  // the script map is only there with scripts
++  if (num_scripts > 0)
++    ReadMap(&reader, file->script_map, PITS_NO_SCRIPT);
++  else
++    FillMap(file->script_map, PITS_NO_SCRIPT);
++
++  if (num_scripts == 0 || reader.error || level_info_only)
++    return TRUE;
++
++  for (i = 0; i < num_scripts && !reader.error; i++)
++  {
++    char name[PITS_SCRIPT_NAME_LEN + 1];
++    int nr = ReadWord(&reader);
++    int script_size, start;
++
++    ReadString(&reader, name, PITS_SCRIPT_NAME_LEN);
++    script_size = ReadWord(&reader);
++    start = ReadWord(&reader);
++
++    if (nr < 0 || nr >= PITS_MAX_SCRIPTS || nr == PITS_NO_SCRIPT)
++      continue;
++
++    strcpy(file->script_name[nr], name);
++    file->script_start[nr] = (script_size > 0 ? start : -1);
++  }
++
++  code_size = ReadWord(&reader);
++
++  if (reader.error)
++    return FALSE;
++
++  file->code = checked_calloc(code_size + 1);
++  file->code_size = code_size;
++
++  for (i = 0; i < code_size; i++)
++    file->code[i] = ReadByte(&reader) ^ "Amanda"[i % 6];
++
++  for (i = 0; i < PITS_MAX_SCRIPTS; i++)
++    if (file->script_start[i] >= code_size)
++      file->script_start[i] = -1;
++
++  return TRUE;
++}
++
++
++// ----------------------------------------------------------------------------
++// the interface for loading levels
++// ----------------------------------------------------------------------------
++
++void setLevelInfoToDefaults_PITS(void)
++{
++  struct LevelInfo_PITS *level = &native_pits_level;
++  int x, y;
++
++  level->title[0] = '\0';
++  level->password[0] = '\0';
++
++  for (x = 0; x < PITS_SIZE; x++)
++  {
++    for (y = 0; y < PITS_SIZE; y++)
++    {
++      level->under[x][y] = 0;
++      level->over[x][y] = 0;
++    }
++  }
++
++  level->directory[0] = '\0';
++  level->file_size = 0;
++}
++
++boolean LoadNativeLevel_PITS(char *filename, boolean level_info_only)
++{
++  static struct PitsFileInfo file;
++  struct LevelInfo_PITS *level = &native_pits_level;
++  char *last_slash;
++  FILE *stream;
++  int x, y;
++
++  setLevelInfoToDefaults_PITS();
++
++  if (!(stream = fopen(filename, "rb")))
++  {
++    if (!level_info_only)
++      Warn("cannot read level '%s' -- using empty level", filename);
++
++    return FALSE;
++  }
++
++  level->file_size = fread(level->file, 1, PITS_MAX_FILE_SIZE, stream);
++  fclose(stream);
++
++  if (!ReadLevelFile_PITS(level->file, level->file_size, &file, TRUE))
++  {
++    Warn("cannot load level '%s' -- using empty level", filename);
++
++    return FALSE;
++  }
++
++  strcpy(level->title, file.title);
++  strcpy(level->password, file.password);
++
++  for (x = 0; x < PITS_SIZE; x++)
++  {
++    for (y = 0; y < PITS_SIZE; y++)
++    {
++      level->under[x][y] = file.under[x][y];
++      level->over[x][y] = file.over[x][y];
++    }
++  }
++
++  // the pictures and sounds are next to the level files
++  strncpy(level->directory, filename, sizeof(level->directory) - 1);
++  level->directory[sizeof(level->directory) - 1] = '\0';
++
++  if ((last_slash = strrchr(level->directory, '/')) != NULL)
++    *last_slash = '\0';
++  else
++    strcpy(level->directory, ".");
++
++  return TRUE;
++}
++
++
++// ----------------------------------------------------------------------------
++// text: a page at a time
++// ----------------------------------------------------------------------------
++
++static void ShowPage(char *page, int *num_lines)
++{
++  int len = strlen(page);
++
++  // no empty lines at the end of a page
++  while (len > 0 && page[len - 1] == '\n')
++    page[--len] = '\0';
++
++  // a frame played again doesn't show its pages again
++  if (len > 0 && ++pits_prompt.page_counter > pits_prompt.pages_shown)
++  {
++    pits_prompt.pages_shown = pits_prompt.page_counter;
++
++    ShowText_PITS(page);
++  }
++
++  page[0] = '\0';
++  *num_lines = 0;
++}
++
++void ShowLevelText_PITS(char *text)
++{
++  char page[TEXT_LINES * (TEXT_COLUMNS + 1) + 1];
++  int num_lines = 0;
++  char *p = text;
++
++  if (quiet_text)
++    return;
++
++  page[0] = '\0';
++
++  while (*p != '\0')
++  {
++    int len = 0;
++
++    // a line: to the end of the text's line, or wrapped at a space
++    while (p[len] != '\0' && p[len] != '\n' && len < TEXT_COLUMNS)
++      len++;
++
++    if (p[len] != '\0' && p[len] != '\n' && p[len] != ' ')
++    {
++      int wrap = len;
++
++      while (wrap > 0 && p[wrap] != ' ')
++	wrap--;
++
++      if (wrap > 0)
++	len = wrap;
++    }
++
++    // no spaces at the end of a line
++    while (len > 0 && p[len - 1] == ' ' && p[len] == ' ')
++      len--;
++
++    // a page doesn't start with an empty line
++    if (num_lines > 0 || len > 0)
++    {
++      strncat(page, p, len);
++      strcat(page, "\n");
++      num_lines++;
++    }
++
++    p += len;
++
++    if (*p == '\n')
++      p++;
++    else
++      while (*p == ' ')			// where the line was wrapped
++	p++;
++
++    if (num_lines == TEXT_LINES)
++      ShowPage(page, &num_lines);
++  }
++
++  if (num_lines > 0)
++    ShowPage(page, &num_lines);
++}
++
++
++// ----------------------------------------------------------------------------
++// the view: the pit around the player
++// ----------------------------------------------------------------------------
++
++void getViewGeometry_PITS(int px, int py, int *vx0, int *vy0, int *ox, int *oy,
++			  int *cols, int *rows, int *scale)
++{
++  int s = MAX(1, MIN(SXSIZE / (9 * PITS_SQUARE), SYSIZE / (7 * PITS_SQUARE)));
++  int square = PITS_SQUARE * s;
++  int cx = (SXSIZE - square) / 2;	// the player's square, on the screen
++  int cy = (SYSIZE - square) / 2;
++  int left = (cx + square - 1) / square;
++  int up   = (cy + square - 1) / square;
++
++  *scale = s;
++  *vx0 = px - left;
++  *vy0 = py - up;
++  *ox = cx - left * square;
++  *oy = cy - up * square;
++  *cols = (SXSIZE - *ox + square - 1) / square;
++  *rows = (SYSIZE - *oy + square - 1) / square;
++}
++
++void SnapshotView_PITS(void)
++{
++  int x, y;
++
++  for (x = 0; x < PITS_SIZE; x++)
++  {
++    for (y = 0; y < PITS_SIZE; y++)
++    {
++      pits_view.under[x][y] = pits.under[x][y];
++      pits_view.over[x][y] = pits.over[x][y];
++    }
++  }
++
++  pits_view.px = pits.px;
++  pits_view.py = pits.py;
++  pits_view.facing = pits.facing;
++  pits_view.player_shape = getPlayerShape_PITS();
++  pits_view.ghost_shape = -1;
++  pits_view.pushing_front = (pits.pushing && pits.gem_in_use == PITS_NO_GEM &&
++			     (pits.facing == PITS_EAST * 4 ||
++			      pits.facing == PITS_SOUTH * 4));
++  pits_view.anim_counter = pits.anim_counter;
++  pits_view.sparkle = pits.sparkle;
++  pits_view.show_all = pits.show_all;
++
++  if (IsGhost_PITS())
++  {
++    pits_view.ghost_shape = pits_view.player_shape;
++    pits_view.player_shape = -1;
++  }
++}
++
++
++// ----------------------------------------------------------------------------
++// starting a level
++// ----------------------------------------------------------------------------
++
++void InitGameEngine_PITS(void)
++{
++  static char last_directory[1024] = "";
++  static char last_title[PITS_TITLE_LEN + 1] = "";
++  boolean same_level = (strcmp(last_directory, native_pits_level.directory) == 0 &&
++			strcmp(last_title, native_pits_level.title) == 0);
++  boolean restart = (same_level && pits.started && pits.moves > 0 && !pits.won);
++  struct PitsFileInfo file = pits.file;
++
++  strcpy(last_directory, native_pits_level.directory);
++  strcpy(last_title, native_pits_level.title);
++
++  // the whole file, with its scripts
++  if (!ReadLevelFile_PITS(native_pits_level.file, native_pits_level.file_size,
++			  &file, FALSE))
++    Warn("cannot read the scripts of level '%s'", native_pits_level.title);
++
++  memset(&pits, 0, sizeof(pits));
++  pits.file = file;
++
++  memset(&pits_prompt, 0, sizeof(pits_prompt));
++
++  InitLevel_PITS();
++
++  pits.frame = 0;
++  pits.tick = 0;
++  pits.last_turn_tick = -PITS_TURN_TICKS;
++  pits.next_anim_tick = 0;
++  pits.started = FALSE;
++  pits.quiet_intro = restart;
++  pits.bump_ready = TRUE;
++  pits.last_move_tick = -PITS_IDLE_TICKS;
++  pits.push_dir = PITS_NO_DIR;
++
++  InitGfx_PITS(native_pits_level.directory);
++  InitSound_PITS(native_pits_level.directory);
++
++  game_pits.level_solved = FALSE;
++  game_pits.game_over = FALSE;
++  game_pits.moves = 0;
++  game_pits.targets_still_needed = getTargetsStillNeeded_PITS();
++  game_pits.gems = 0;
++  game_pits.key[0] = game_pits.key[1] = game_pits.key[2] = FALSE;
++
++  SnapshotView_PITS();
++}
++
++unsigned int InitEngineRandom_PITS(int seed)
++{
++  // the game has no chance in it
++  return (seed < 0 ? 0 : seed);
++}
++
++
++// ----------------------------------------------------------------------------
++// the game, a frame at a time
++// ----------------------------------------------------------------------------
++
++static int getDirFromAction(int action)
++{
++  int last_dir = pits.facing / 4;
++
++  // a direction held on keeps going, when another is pressed too
++  if ((last_dir == PITS_NORTH && (action & MV_UP)) ||
++      (last_dir == PITS_EAST  && (action & MV_RIGHT)) ||
++      (last_dir == PITS_SOUTH && (action & MV_DOWN)) ||
++      (last_dir == PITS_WEST  && (action & MV_LEFT)))
++    return last_dir;
++
++  return (action & MV_UP    ? PITS_NORTH :
++	  action & MV_RIGHT ? PITS_EAST :
++	  action & MV_DOWN  ? PITS_SOUTH :
++	  action & MV_LEFT  ? PITS_WEST : PITS_NO_DIR);
++}
++
++static int getDirTowards(int x, int y)
++{
++  int dx = x - pits.px;
++  int dy = y - pits.py;
++
++  if (dx == 0 && dy == 0)
++    return PITS_NO_DIR;
++
++  if (abs(dx) >= abs(dy))
++    return (dx > 0 ? PITS_EAST : PITS_WEST);
++
++  return (dy > 0 ? PITS_SOUTH : PITS_NORTH);
++}
++
++static void WalkStep(void)
++{
++  int dir;
++
++  if (pits.px == pits.walk_x && pits.py == pits.walk_y)
++  {
++    pits.walking = FALSE;
++
++    return;
++  }
++
++  dir = pits.walk_next[pits.px][pits.py];
++
++  // moved off the way (by a script): find it again
++  if (dir < PITS_NORTH || dir > PITS_WEST)
++  {
++    if (!FindWay_PITS(pits.walk_x, pits.walk_y))
++      return;
++
++    dir = pits.walk_next[pits.px][pits.py];
++  }
++
++  // turning right round goes through a quarter turn first
++  if (dir == (pits.facing / 4 + 2) % 4)
++  {
++    pits.facing = ((pits.facing / 4 + 3) % 4) * 4;
++
++    return;
++  }
++
++  TryStep_PITS(dir);
++
++  if (pits.px == pits.walk_x && pits.py == pits.walk_y)
++    pits.walking = FALSE;
++}
++
++// a gem or a key, used with snap or drop and a direction
++static void UseGemOrKey(int action)
++{
++  static int gems[4] = { PITS_GREEN, PITS_BLUE, PITS_YELLOW, PITS_RED };
++  static int keys[4] = { PITS_GREEN, PITS_BLUE, -1,          PITS_RED };
++  int dir = getDirFromAction(action);
++
++  if (dir == PITS_NO_DIR)
++    return;
++
++  if (action & KEY_BUTTON_SNAP)
++    UseGem_PITS(gems[dir]);
++  else if ((action & KEY_BUTTON_DROP) && keys[dir] != -1)
++    UseKey_PITS(keys[dir]);
++}
++
++static void HandleChange(void)
++{
++  if (pits.tick - pits.last_turn_tick < PITS_TURN_TICKS)
++    return;
++
++  pits.last_turn_tick = pits.tick;
++
++  if (pits.change_dir > 0)
++  {
++    if (pits.change_turns > 0)
++    {
++      // facing south, from north through east
++      pits.facing = (pits.facing == PITS_NORTH * 4 ? PITS_EAST * 4 :
++		     PITS_SOUTH * 4);
++      pits.change_turns--;
++    }
++    else if (pits.gem_in_use != PITS_GREEN)
++    {
++      pits.change_dir = 0;
++    }
++    else if (++pits.green_stage >= PITS_GHOST_STAGE)
++    {
++      pits.green_stage = PITS_GHOST_STAGE;
++      pits.change_dir = 0;
++    }
++  }
++  else
++  {
++    if (--pits.change_stage <= 1)
++      pits.change_dir = 0;
++  }
++}
++
++static void HandleInput(int action, struct MouseActionInfo mouse)
++{
++  int dir = getDirFromAction(action);
++  boolean snap = ((action & KEY_BUTTON_SNAP) != 0);
++  boolean drop = ((action & KEY_BUTTON_DROP) != 0);
++  boolean new_action = (action != pits.last_action);
++  boolean can_turn = (pits.tick - pits.last_turn_tick >= PITS_TURN_TICKS);
++  int button = mouse.button;
++  int mx = mouse.lx + 1;		// R'n'D's playfield is the pit's inside
++  int my = mouse.ly + 1;
++
++  pits.show_all = (snap && dir == PITS_SOUTH && pits.gems[PITS_YELLOW]);
++
++  // signs and switches: once each time a direction is pressed
++  if (dir == PITS_NO_DIR && button != MB_LEFTBUTTON)
++  {
++    pits.bump_ready = TRUE;
++    pits.pushing = FALSE;
++  }
++  else if (new_action)
++  {
++    pits.bump_ready = TRUE;
++  }
++
++  // a gem (snap) or a key (drop) with a direction
++  if ((snap || drop) && dir != PITS_NO_DIR)
++  {
++    pits.walking = FALSE;
++
++    if (new_action)
++      UseGemOrKey(action);
++
++    return;
++  }
++
++  if (dir != PITS_NO_DIR)
++  {
++    pits.walking = FALSE;
++
++    if (can_turn)
++    {
++      pits.last_turn_tick = pits.tick;
++
++      // a key held into a switch or sign works on it again every turn
++      pits.bump_ready = TRUE;
++
++      TryStep_PITS(dir);
++    }
++
++    return;
++  }
++
++  if (snap)				// waiting
++  {
++    pits.walking = FALSE;
++
++    if (can_turn)
++    {
++      pits.last_turn_tick = pits.tick;
++
++      Wait_PITS();
++    }
++
++    return;
++  }
++
++  // the walking button: to the square clicked
++  if (button == MB_RIGHTBUTTON && pits.last_button != MB_RIGHTBUTTON &&
++      PITS_IN_PIT(mx, my))
++    FindWay_PITS(mx, my);
++
++  // the stepping button: towards the square pointed at
++  if (button == MB_LEFTBUTTON && PITS_IN_PIT(mx, my))
++  {
++    int mouse_dir = getDirTowards(mx, my);
++
++    pits.walking = FALSE;
++
++    if (mouse_dir != PITS_NO_DIR && can_turn)
++    {
++      pits.last_turn_tick = pits.tick;
++
++      if (mouse_dir == (pits.facing / 4 + 2) % 4)
++	pits.facing = ((pits.facing / 4 + 1) % 4) * 4;
++      else
++	TryStep_PITS(mouse_dir);
++    }
++
++    return;
++  }
++
++  if (pits.walking && can_turn)
++  {
++    pits.last_turn_tick = pits.tick;
++
++    WalkStep();
++  }
++}
++
++static void UpdatePanel(void)
++{
++  game_pits.moves = pits.moves;
++  game_pits.targets_still_needed = getTargetsStillNeeded_PITS();
++  game_pits.gems = pits.gems[PITS_RED] + pits.gems[PITS_GREEN] +
++    pits.gems[PITS_BLUE];
++  game_pits.key[0] = (pits.keys[PITS_RED] > 0);
++  game_pits.key[1] = (pits.keys[PITS_GREEN] > 0);
++  game_pits.key[2] = (pits.keys[PITS_BLUE] > 0);
++
++  if (pits.won)
++    game_pits.level_solved = TRUE;
++}
++
++// ----------------------------------------------------------------------------
++// a script asking the player: the typing room (INPUT), the cursor (TARGET)
++// ----------------------------------------------------------------------------
++
++int getRoomKey_PITS(int x, int y)
++{
++  if (x < 0 || x >= PITS_ROOM_COLS || y < 0 || y >= PITS_ROOM_ROWS)
++    return 0;
++
++  return room_keys[y][x];
++}
++
++static void Ask(int mode)
++{
++  pits_prompt.mode = mode;
++
++  longjmp(ask_jump, 1);
++}
++
++void AnswerInput_PITS(char *input)
++{
++  if (pits_prompt.next_answer < pits_prompt.num_answers)
++  {
++    strcpy(input, pits_prompt.answer_text[pits_prompt.next_answer++]);
++
++    return;
++  }
++
++  pits_prompt.typed[0] = '\0';
++  pits_prompt.cx = 7;			// on the space, next to "done"
++  pits_prompt.cy = PITS_ROOM_ROWS - 1;
++  pits_prompt.facing = PITS_NORTH * 4;
++
++  Ask(PITS_PROMPT_INPUT);
++}
++
++void AnswerTarget_PITS(int *x, int *y)
++{
++  if (pits_prompt.next_answer < pits_prompt.num_answers)
++  {
++    *x = pits_prompt.answer_x[pits_prompt.next_answer];
++    *y = pits_prompt.answer_y[pits_prompt.next_answer];
++    pits_prompt.next_answer++;
++
++    return;
++  }
++
++  pits_prompt.cx = pits.px;
++  pits_prompt.cy = pits.py;
++
++  Ask(PITS_PROMPT_TARGET);
++}
++
++static void Answer(void)
++{
++  int nr = pits_prompt.num_answers;
++
++  if (nr < PITS_MAX_ANSWERS)
++  {
++    strcpy(pits_prompt.answer_text[nr], pits_prompt.typed);
++    pits_prompt.answer_x[nr] = pits_prompt.cx;
++    pits_prompt.answer_y[nr] = pits_prompt.cy;
++    pits_prompt.num_answers++;
++  }
++
++  pits_prompt.mode = PITS_PROMPT_NONE;
++  pits_prompt.wait_release = TRUE;
++}
++
++static void TypeKey(int key)
++{
++  int len = strlen(pits_prompt.typed);
++
++  if (key == PITS_KEY_DONE)
++  {
++    Answer();
++  }
++  else if (key == PITS_KEY_RUBOUT)
++  {
++    if (len > 0)
++      pits_prompt.typed[len - 1] = '\0';
++  }
++  else if (key != 0 && len < PITS_INPUT_LEN)
++  {
++    pits_prompt.typed[len] = key;
++    pits_prompt.typed[len + 1] = '\0';
++  }
++}
++
++static void HandlePrompt(int action, struct MouseActionInfo mouse)
++{
++  boolean input = (pits_prompt.mode == PITS_PROMPT_INPUT);
++  int dir = (action & MV_UP    ? PITS_NORTH :
++	     action & MV_RIGHT ? PITS_EAST :
++	     action & MV_DOWN  ? PITS_SOUTH :
++	     action & MV_LEFT  ? PITS_WEST : PITS_NO_DIR);
++  boolean snap = ((action & KEY_BUTTON_SNAP) != 0);
++  boolean new_action = (action != pits_prompt.last_action);
++  boolean new_button = (mouse.button != 0 && pits_prompt.last_button == 0);
++
++  pits_prompt.last_action = action;
++  pits_prompt.last_button = mouse.button;
++
++  // what was held when the question came is let go first
++  if (pits_prompt.wait_release)
++  {
++    if (action == 0 && mouse.button == 0)
++      pits_prompt.wait_release = FALSE;
++
++    return;
++  }
++
++  // a click: that key, or that square
++  if (new_button && mouse.button == MB_LEFTBUTTON)
++  {
++    int x = mouse.lx + (input ? 0 : 1);
++    int y = mouse.ly + (input ? 0 : 1);
++
++    if (input && getRoomKey_PITS(x, y) != 0)
++    {
++      pits_prompt.cx = x;
++      pits_prompt.cy = y;
++
++      TypeKey(getRoomKey_PITS(x, y));
++    }
++    else if (!input && PITS_IN_PIT(x, y))
++    {
++      pits_prompt.cx = x;
++      pits_prompt.cy = y;
++
++      Answer();
++    }
++
++    return;
++  }
++
++  if (snap && dir == PITS_NO_DIR)
++  {
++    if (new_action)
++    {
++      if (input)
++	TypeKey(getRoomKey_PITS(pits_prompt.cx, pits_prompt.cy));
++      else
++	Answer();
++    }
++
++    return;
++  }
++
++  if (dir == PITS_NO_DIR)
++  {
++    pits_prompt.hold_frames = 0;
++
++    return;
++  }
++
++  // a direction: a square at once, then at the pace of turns
++  if (!new_action && ++pits_prompt.hold_frames < 8)
++    return;
++
++  pits_prompt.hold_frames = 0;
++
++  if (input)
++  {
++    static int dx[4] = { 0, 1, 0, -1 };
++    static int dy[4] = { -1, 0, 1, 0 };
++    int x = pits_prompt.cx + dx[dir];
++    int y = pits_prompt.cy + dy[dir];
++
++    pits_prompt.facing = dir * 4;
++
++    if (getRoomKey_PITS(x, y) == 0)
++      return;
++
++    pits_prompt.cx = x;
++    pits_prompt.cy = y;
++
++    // walking onto "done" answers
++    if (getRoomKey_PITS(x, y) == PITS_KEY_DONE &&
++	getRoomKey_PITS(x - dx[dir], y - dy[dir]) != PITS_KEY_DONE)
++      Answer();
++  }
++  else
++  {
++    int x = pits_prompt.cx + (dir == PITS_EAST ? 1 : dir == PITS_WEST ? -1 : 0);
++    int y = pits_prompt.cy + (dir == PITS_SOUTH ? 1 : dir == PITS_NORTH ? -1 : 0);
++
++    if (PITS_IN_PIT(x, y))
++    {
++      pits_prompt.cx = x;
++      pits_prompt.cy = y;
++    }
++  }
++}
++
++
++// a frame of the game; a script asking the player leaves it, and it is played
++// again from its start once the player has answered
++static void PlayFrame(int action, struct MouseActionInfo mouse)
++{
++  pits_frame_start = pits;
++  pits_prompt.next_answer = 0;
++  pits_prompt.page_counter = 0;
++
++  if (setjmp(ask_jump) != 0)
++  {
++    quiet_text = FALSE;
++    pits = pits_frame_start;
++
++    pits_prompt.frame_action = action;
++    pits_prompt.frame_mouse = mouse;
++    pits_prompt.last_action = action;
++    pits_prompt.last_button = mouse.button;
++    pits_prompt.hold_frames = 0;
++    pits_prompt.wait_release = TRUE;
++
++    return;
++  }
++
++  pits.frame++;
++  pits.tick = PITS_TICKS(pits.frame);
++  pits.sounds = 0;
++
++  if (!pits.started)
++  {
++    pits.started = TRUE;
++
++    quiet_text = pits.quiet_intro;
++    StartLevel_PITS();
++    quiet_text = FALSE;
++
++    CheckWin_PITS();
++  }
++  else if (!pits.won)
++  {
++    while (pits.tick >= pits.next_anim_tick)
++    {
++      AnimStep_PITS();
++
++      pits.next_anim_tick += PITS_TURN_TICKS;
++    }
++
++    if (pits.change_dir != 0)
++    {
++      // a gem or key pressed while the change is shown acts after it
++      if (action != pits.last_action &&
++	  (action & (KEY_BUTTON_SNAP | KEY_BUTTON_DROP)) &&
++	  getDirFromAction(action) != PITS_NO_DIR)
++	pits.pending_use = action;
++
++      HandleChange();
++
++      if (pits.change_dir == 0 && pits.pending_use != 0)
++      {
++	int pending_use = pits.pending_use;
++
++	pits.pending_use = 0;
++	UseGemOrKey(pending_use);
++      }
++    }
++    else
++    {
++      HandleInput(action, mouse);
++    }
++  }
++
++  pits.last_action = action;
++  pits.last_button = mouse.button;
++
++  UpdatePanel();
++  SnapshotView_PITS();
++
++  PlaySounds_PITS(pits.sounds);
++
++  // the frame is done: its answers are used
++  pits_prompt.num_answers = 0;
++  pits_prompt.pages_shown = 0;
++}
++
++void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
++{
++  struct MouseActionInfo no_mouse = { 0, 0, 0, 0 };
++
++  if (pits_prompt.mode != PITS_PROMPT_NONE)
++  {
++    HandlePrompt(action[0], mouse);
++
++    // answered: the frame that asked is played again
++    if (pits_prompt.mode == PITS_PROMPT_NONE)
++      PlayFrame(pits_prompt.frame_action, pits_prompt.frame_mouse);
++
++    return;
++  }
++
++  // after the room or the cursor, the pit waits until all is let go
++  if (pits_prompt.wait_release)
++  {
++    if (action[0] == 0 && mouse.button == 0)
++      pits_prompt.wait_release = FALSE;
++
++    PlayFrame(0, no_mouse);
++  }
++  else
++  {
++    PlayFrame(action[0], mouse);
++  }
++}
+diff --git a/src/game_pits/pits_main.h b/src/game_pits/pits_main.h
+new file mode 100644
+index 0000000..a83fea6
+--- /dev/null
++++ b/src/game_pits/pits_main.h
+@@ -0,0 +1,342 @@
++// ============================================================================
++// The Puzzle Pits engine for Rocks'n'Diamonds
++// ----------------------------------------------------------------------------
++// Written from the description of the game in PITS-RULES.md and of its level
++// files in PIT-FORMAT.md.
++// ----------------------------------------------------------------------------
++// pits_main.h: what the parts of game_pits share
++// ============================================================================
++
++#ifndef PITS_MAIN_H
++#define PITS_MAIN_H
++
++#include "../libgame/libgame.h"
++#include "../game.h"
++
++#include "export_pits.h"
++
++
++// ----------------------------------------------------------------------------
++// imported from the main program
++// ----------------------------------------------------------------------------
++
++extern int			SX, SY;
++extern int			SXSIZE, SYSIZE;
++
++
++// ----------------------------------------------------------------------------
++// constant definitions
++// ----------------------------------------------------------------------------
++
++#define PITS_MIN			1	// the playable squares
++#define PITS_MAX			(PITS_SIZE - 2)
++#define PITS_IN_PIT(x, y)		((x) >= PITS_MIN && (x) <= PITS_MAX && \
++					 (y) >= PITS_MIN && (y) <= PITS_MAX)
++#define PITS_IN_ARRAY(x, y)		((x) >= 0 && (x) < PITS_SIZE &&	\
++					 (y) >= 0 && (y) < PITS_SIZE)
++
++#define PITS_MAX_SCRIPTS		256
++#define PITS_NO_SCRIPT			255
++#define PITS_SCRIPT_NAME_LEN		32
++#define PITS_INPUT_LEN			16
++#define PITS_NUM_REGISTERS		10
++
++// the game's clock: about 60 ticks a second, R'n'D's frames 50 a second
++#define PITS_TICKS(frames)		((frames) * 6 / 5)
++#define PITS_TURN_TICKS			9
++#define PITS_PUSH_TICKS			25
++#define PITS_IDLE_TICKS			90
++
++#define PITS_SQUARE			24	// a square's pictures, in pixels
++
++// directions: the way a thing goes (north 0, east 1, south 2, west 3);
++// the player's facing is four times that
++#define PITS_NORTH			0
++#define PITS_EAST			1
++#define PITS_SOUTH			2
++#define PITS_WEST			3
++#define PITS_NO_DIR			-1
++
++// what stands on a square
++#define PITS_O_NOTHING			0
++#define PITS_O_WALL			1
++#define PITS_O_SIGN			5
++#define PITS_O_PILLAR			9
++#define PITS_O_SWITCH_OFF		13
++#define PITS_O_SWITCH_ON		17
++#define PITS_O_BARREL_WATER		21
++#define PITS_O_BARREL_HOLE		25
++#define PITS_O_BARREL			29
++#define PITS_O_BARREL_HOME		33
++#define PITS_O_CRATE			37
++#define PITS_O_CRATE_HOME		41
++#define PITS_O_CHEST			45
++#define PITS_O_CHEST_HOME		49
++#define PITS_O_PLAYER			100
++
++#define PITS_IS_BOX(o)			((o) >= PITS_O_BARREL && (o) < 53)
++#define PITS_IS_CHEST(o)		((o) == PITS_O_CHEST || (o) == PITS_O_CHEST_HOME)
++#define PITS_IS_AT_HOME(o)		((o) == PITS_O_BARREL_HOME ||	\
++					 (o) == PITS_O_CRATE_HOME ||	\
++					 (o) == PITS_O_CHEST_HOME)
++
++// the ground
++#define PITS_U_VOID			0
++#define PITS_U_FLOOR			53
++#define PITS_U_TARGET_RED		54
++#define PITS_U_TARGET_GREEN		55
++#define PITS_U_TARGET_BLUE		56
++#define PITS_U_MARKED			57
++#define PITS_U_PLATE_UP			58
++#define PITS_U_PLATE_DOWN		59
++#define PITS_U_ARROW_UP			60
++#define PITS_U_ARROW_LEFT		63
++#define PITS_U_GEM_RED			64
++#define PITS_U_GEM_YELLOW		67
++#define PITS_U_KEY_RED			68
++#define PITS_U_KEY_BLUE			70
++#define PITS_U_GLASS			71
++#define PITS_U_LOCK_RED			76
++#define PITS_U_CRATE_WATER		79
++#define PITS_U_CRATE_HOLE		80
++#define PITS_U_WOOD			81
++#define PITS_U_GRASS			82
++#define PITS_U_HOLE			83
++#define PITS_U_WATER			84
++#define PITS_U_LAVA			88
++#define PITS_U_LAVA_COOLING_1		92
++#define PITS_U_LAVA_COOLING_2		96
++
++#define PITS_IS_ARROW(u)		((u) >= PITS_U_ARROW_UP && (u) <= PITS_U_ARROW_LEFT)
++#define PITS_IS_WATER(u)		((u) >= PITS_U_WATER && (u) < PITS_U_LAVA)
++#define PITS_IS_LAVA(u)			((u) >= PITS_U_LAVA && (u) < PITS_U_LAVA_COOLING_1)
++#define PITS_IS_COOLING(u)		((u) >= PITS_U_LAVA_COOLING_1 && (u) < 100)
++#define PITS_IS_TARGET(u)		((u) >= PITS_U_TARGET_RED && (u) <= PITS_U_TARGET_BLUE)
++
++// gems and keys
++#define PITS_RED			0
++#define PITS_GREEN			1
++#define PITS_BLUE			2
++#define PITS_YELLOW			3
++#define PITS_NO_GEM			-1
++
++#define PITS_GHOST_STAGE		7
++
++// the sounds
++enum
++{
++  PITS_SND_CRACK,
++  PITS_SND_GLASS,
++  PITS_SND_LAVA,
++  PITS_SND_MAGIC,
++  PITS_SND_PLATEOFF,
++  PITS_SND_PLATEON,
++  PITS_SND_SCRAPE,
++  PITS_SND_SPLINTER,
++  PITS_SND_WATER,
++
++  PITS_NUM_SOUNDS
++};
++
++
++// ----------------------------------------------------------------------------
++// data structure definitions
++// ----------------------------------------------------------------------------
++
++// a level file, as read
++struct PitsFileInfo
++{
++  char title[PITS_TITLE_LEN + 1];
++  char password[PITS_PASSWORD_LEN + 1];
++  int under[PITS_SIZE][PITS_SIZE];
++  int over[PITS_SIZE][PITS_SIZE];
++  int script_map[PITS_SIZE][PITS_SIZE];
++
++  // the scripts, by their number: where their code starts, or -1
++  int script_start[PITS_MAX_SCRIPTS];
++  char script_name[PITS_MAX_SCRIPTS][PITS_SCRIPT_NAME_LEN + 1];
++
++  unsigned char *code;
++  int code_size;
++};
++
++// the game, as it is played
++struct PitsInfo
++{
++  struct PitsFileInfo file;
++
++  int under[PITS_SIZE][PITS_SIZE];
++  int over[PITS_SIZE][PITS_SIZE];
++  int last_pushed[PITS_SIZE][PITS_SIZE];
++
++  int px, py;				// the player
++  int lastx, lasty;
++  int facing;				// 0, 4, 8, 12
++
++  boolean walkable[101];
++
++  int moves;
++  int gems[4];				// red, green, blue; yellow: 0 or 1
++  int keys[3];
++  int gem_in_use;
++  int green_stage;			// 1 to 7 while the green gem is in use
++  int green_x, green_y;			// where the player became a ghost
++
++  int reg[PITS_NUM_REGISTERS];
++  int xpos, ypos;			// the running script's square
++  char input[PITS_INPUT_LEN + 1];
++  int input_value;
++
++  // the squares with arrows and glass, in the order they move things
++  int arrows_x[PITS_SIZE * PITS_SIZE];
++  int arrows_y[PITS_SIZE * PITS_SIZE];
++  boolean in_arrows[PITS_SIZE][PITS_SIZE];
++  int num_arrows;
++  boolean arrived[PITS_SIZE][PITS_SIZE];	// objects moved here this turn
++
++  boolean won;
++
++  // the scripts that the game knows by name
++  int script_intro, script_master;
++  int script_gem[3];
++
++  // time and input
++  int frame;
++  int tick;
++  int last_turn_tick;
++  int next_anim_tick;
++  boolean started;
++  boolean quiet_intro;			// a restart: Intro's text isn't shown again
++
++  boolean pushing;
++  int push_dir;
++  int push_tick;
++  boolean bump_ready;			// a sign or switch may be walked into
++
++  boolean walking;
++  int walk_x, walk_y;
++  int walk_next[PITS_SIZE][PITS_SIZE];	// the way to go from each square
++
++  int last_action;
++  int last_button;
++
++
++  // changing to a ghost and back (pictures only, a stage every turn's time)
++  int change_dir;			// +1 to a ghost, -1 back, 0 none
++  int change_stage;
++  int change_turns;			// quarter turns to make first
++  int pending_use;			// a gem or key pressed meanwhile
++
++  // the pictures
++  int walk_step;
++  int last_move_tick;
++  int anim_counter;
++  int sparkle;
++  boolean show_all;
++
++  int sounds;				// played after the pit is drawn
++};
++
++// a script asking the player (INPUT, TARGET): the frame it happened in is
++// played again from its start once the player has answered, with the answers
++#define PITS_PROMPT_NONE		0
++#define PITS_PROMPT_INPUT		1
++#define PITS_PROMPT_TARGET		2
++
++#define PITS_MAX_ANSWERS		16
++
++// the typing room: its keys, ten across and four down
++#define PITS_ROOM_COLS			10
++#define PITS_ROOM_ROWS			4
++#define PITS_KEY_SPACE			' '
++#define PITS_KEY_RUBOUT			'<'
++#define PITS_KEY_DONE			'>'
++
++struct PitsPromptInfo
++{
++  int mode;
++
++  int frame_action;			// the frame to play again
++  struct MouseActionInfo frame_mouse;
++
++  int num_answers;
++  int next_answer;
++  char answer_text[PITS_MAX_ANSWERS][PITS_INPUT_LEN + 1];
++  int answer_x[PITS_MAX_ANSWERS];
++  int answer_y[PITS_MAX_ANSWERS];
++
++  int pages_shown;			// text pages already shown in this frame
++  int page_counter;
++
++  int cx, cy;				// the cursor, or the player in the room
++  int facing;
++  char typed[PITS_INPUT_LEN + 1];
++
++  int last_action;
++  int last_button;
++  int hold_frames;
++  boolean wait_release;			// no input until all is let go
++};
++
++// what was shown last (REDRAW, APPEAR, and every frame between turns)
++struct PitsViewInfo
++{
++  int under[PITS_SIZE][PITS_SIZE];
++  int over[PITS_SIZE][PITS_SIZE];
++  int px, py;
++  int player_shape;			// -1: not drawn as an object
++  int ghost_shape;			// -1: no ghost
++  boolean pushing_front;		// facing east or south, pushing
++  int facing;
++  int anim_counter;
++  int sparkle;
++  boolean show_all;
++};
++
++
++// ----------------------------------------------------------------------------
++// exported variables
++// ----------------------------------------------------------------------------
++
++extern struct PitsInfo pits;
++extern struct PitsViewInfo pits_view;
++extern struct PitsPromptInfo pits_prompt;
++
++
++// ----------------------------------------------------------------------------
++// exported functions
++// ----------------------------------------------------------------------------
++
++// pits_main.c
++boolean ReadLevelFile_PITS(unsigned char *, int, struct PitsFileInfo *, boolean);
++void ShowLevelText_PITS(char *);
++void SnapshotView_PITS(void);
++void getViewGeometry_PITS(int, int, int *, int *, int *, int *, int *, int *, int *);
++void AnswerInput_PITS(char *);
++void AnswerTarget_PITS(int *, int *);
++int getRoomKey_PITS(int, int);
++
++// pits_logic.c
++void InitLevel_PITS(void);
++void StartLevel_PITS(void);
++void AnimStep_PITS(void);
++void TryStep_PITS(int);
++void Wait_PITS(void);
++void UseGem_PITS(int);
++void UseKey_PITS(int);
++void TurnChecks_PITS(void);
++void FinishGhost_PITS(void);
++boolean CanEnter_PITS(int, int);
++boolean FindWay_PITS(int, int);
++boolean HasScript_PITS(int);
++void CheckWin_PITS(void);
++int getPlayerShape_PITS(void);
++boolean IsGhost_PITS(void);
++int getTargetsStillNeeded_PITS(void);
++
++// pits_gfx.c
++void InitGfx_PITS(char *);
++void InitSound_PITS(char *);
++void PlaySounds_PITS(int);
++
++#endif	// PITS_MAIN_H
+-- 
+2.56.0
+
