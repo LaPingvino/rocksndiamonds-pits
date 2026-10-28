@@ -12565,6 +12565,12 @@ static void CheckLevelSolved(void)
     if (game_pits.level_solved &&
 	!game_pits.game_over)				// game won
     {
+      // as the game shows it, before going on: the level's password
+      char text[100 + PITS_PASSWORD_LEN];
+
+      snprintf(text, sizeof(text), "Level Complete!\n\n\nPassword:  %s", native_pits_level.password);
+      ShowText_PITS(text);
+
       LevelSolved();
 
       game_pits.game_over = TRUE;
@@ -13220,15 +13226,27 @@ void GameActions_SP_Main(void)
   }
 }
 
-// a page of a Puzzle Pits script's text (PRINT), in an envelope: on a tape
-// played back it closes by itself
+// a page of a Puzzle Pits script's text (PRINT), in an envelope as big as
+// the text: on a tape played back it closes by itself
 void ShowText_PITS(char *text)
 {
   struct EnvelopeInfo *envelope = &level.envelope[0];
   struct EnvelopeInfo level_envelope = *envelope;
 
-  envelope->xsize = MAX_ENVELOPE_XSIZE;
-  envelope->ysize = MAX_ENVELOPE_YSIZE;
+  int lines = 1, column = 0, width = 1;
+  char *c;
+
+  // as big as the text: its longest line, its lines
+  for (c = text; *c; c++)
+  {
+    if (*c == '\n')
+      lines++, column = 0;
+    else
+      width = MAX(width, ++column);
+  }
+
+  envelope->xsize = MIN(width + 1, MAX_ENVELOPE_XSIZE);
+  envelope->ysize = MIN(lines, MAX_ENVELOPE_YSIZE);
   envelope->autowrap = FALSE;
   envelope->centered = FALSE;
   strncpy(envelope->text, text, MAX_ENVELOPE_TEXT_LEN);
