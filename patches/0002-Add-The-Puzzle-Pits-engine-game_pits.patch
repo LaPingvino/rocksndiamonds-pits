@@ -1,6 +1,6 @@
-From bad56841a3afeea45efc2c6493a803111d859619 Mon Sep 17 00:00:00 2001
+From 096fd9b8b949d6d9c4dfe338368e32ae183b745d Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 19:28:03 +0000
+Date: Wed, 28 Oct 2026 19:46:37 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
 
 The Puzzle Pits (Abe Pralle, Plasma Works, 1995) is a Sokoban-like
@@ -30,32 +30,17 @@ from its code.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- src/Makefile               |    3 +-
  src/game_pits/Makefile     |    3 +
  src/game_pits/pits_gfx.c   |  658 ++++++++++++++
  src/game_pits/pits_logic.c | 1730 ++++++++++++++++++++++++++++++++++++
  src/game_pits/pits_main.c  | 1017 +++++++++++++++++++++
  src/game_pits/pits_main.h  |  342 +++++++
- 6 files changed, 3752 insertions(+), 1 deletion(-)
+ 5 files changed, 3750 insertions(+)
  create mode 100644 src/game_pits/pits_gfx.c
  create mode 100644 src/game_pits/pits_logic.c
  create mode 100644 src/game_pits/pits_main.c
  create mode 100644 src/game_pits/pits_main.h
 
-diff --git a/src/Makefile b/src/Makefile
-index 7bad7d0..10fdb94 100644
---- a/src/Makefile
-+++ b/src/Makefile
-@@ -327,7 +327,8 @@ $(GAME_SP):
- 
- game_pits_dir:
- 	@$(MAKE) -C $(GAME_PITS_DIR)
--$(GAME_PITS):
-+# rebuilt (and the program relinked) when the engine's sources change
-+$(GAME_PITS): $(wildcard $(GAME_PITS_DIR)/*.c $(GAME_PITS_DIR)/*.h)
- 	@$(MAKE) -C $(GAME_PITS_DIR)
- 
- game_mm_dir:
 diff --git a/src/game_pits/Makefile b/src/game_pits/Makefile
 index 7bfba96..10f59b4 100644
 --- a/src/game_pits/Makefile

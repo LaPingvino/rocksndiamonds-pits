@@ -1,6 +1,6 @@
-From aeb66e22871ff3af943f3877c341c6bacfe694ae Mon Sep 17 00:00:00 2001
+From 36e361680f305957c62d8bdfc3ba8d2ab5cd7998 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 19:28:03 +0000
+Date: Wed, 28 Oct 2026 19:46:37 +0000
 Subject: [PATCH 3/3] Add The Puzzle Pits' level set
 
 Abe Pralle's 40 levels, with the game's pictures and sounds, as the game
@@ -9,66 +9,69 @@ Puzzle Pits engine ('filetype: PITS').
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- levels/The_Puzzle_Pits/CRACK.WAV              | Bin 0 -> 5204 bytes
- levels/The_Puzzle_Pits/GLASS.WAV              | Bin 0 -> 7400 bytes
- levels/The_Puzzle_Pits/LAVA.WAV               | Bin 0 -> 11144 bytes
- levels/The_Puzzle_Pits/LEVEL01.PIT            | Bin 0 -> 1984 bytes
- levels/The_Puzzle_Pits/LEVEL02.PIT            | Bin 0 -> 587 bytes
- levels/The_Puzzle_Pits/LEVEL03.PIT            | Bin 0 -> 799 bytes
- levels/The_Puzzle_Pits/LEVEL04.PIT            | Bin 0 -> 948 bytes
- levels/The_Puzzle_Pits/LEVEL05.PIT            | Bin 0 -> 1323 bytes
- levels/The_Puzzle_Pits/LEVEL06.PIT            | Bin 0 -> 795 bytes
- levels/The_Puzzle_Pits/LEVEL07.PIT            | Bin 0 -> 737 bytes
- levels/The_Puzzle_Pits/LEVEL08.PIT            | Bin 0 -> 681 bytes
- levels/The_Puzzle_Pits/LEVEL09.PIT            | Bin 0 -> 956 bytes
- levels/The_Puzzle_Pits/LEVEL10.PIT            | Bin 0 -> 1020 bytes
- levels/The_Puzzle_Pits/LEVEL11.PIT            | Bin 0 -> 714 bytes
- levels/The_Puzzle_Pits/LEVEL12.PIT            | Bin 0 -> 852 bytes
- levels/The_Puzzle_Pits/LEVEL13.PIT            | Bin 0 -> 1399 bytes
- levels/The_Puzzle_Pits/LEVEL14.PIT            | Bin 0 -> 896 bytes
- levels/The_Puzzle_Pits/LEVEL15.PIT            | Bin 0 -> 1156 bytes
- levels/The_Puzzle_Pits/LEVEL16.PIT            | Bin 0 -> 726 bytes
- levels/The_Puzzle_Pits/LEVEL17.PIT            | Bin 0 -> 957 bytes
- levels/The_Puzzle_Pits/LEVEL18.PIT            | Bin 0 -> 1022 bytes
- levels/The_Puzzle_Pits/LEVEL19.PIT            | Bin 0 -> 815 bytes
- levels/The_Puzzle_Pits/LEVEL20.PIT            | Bin 0 -> 718 bytes
- levels/The_Puzzle_Pits/LEVEL21.PIT            | Bin 0 -> 1159 bytes
- levels/The_Puzzle_Pits/LEVEL22.PIT            | Bin 0 -> 1453 bytes
- levels/The_Puzzle_Pits/LEVEL23.PIT            | Bin 0 -> 1056 bytes
- levels/The_Puzzle_Pits/LEVEL24.PIT            | Bin 0 -> 1206 bytes
- levels/The_Puzzle_Pits/LEVEL25.PIT            | Bin 0 -> 2384 bytes
- levels/The_Puzzle_Pits/LEVEL26.PIT            | Bin 0 -> 907 bytes
- levels/The_Puzzle_Pits/LEVEL27.PIT            | Bin 0 -> 1182 bytes
- levels/The_Puzzle_Pits/LEVEL28.PIT            | Bin 0 -> 520 bytes
- levels/The_Puzzle_Pits/LEVEL29.PIT            | Bin 0 -> 714 bytes
- levels/The_Puzzle_Pits/LEVEL30.PIT            | Bin 0 -> 1217 bytes
- levels/The_Puzzle_Pits/LEVEL31.PIT            | Bin 0 -> 872 bytes
- levels/The_Puzzle_Pits/LEVEL32.PIT            | Bin 0 -> 1019 bytes
- levels/The_Puzzle_Pits/LEVEL33.PIT            | Bin 0 -> 790 bytes
- levels/The_Puzzle_Pits/LEVEL34.PIT            | Bin 0 -> 579 bytes
- levels/The_Puzzle_Pits/LEVEL35.PIT            | Bin 0 -> 931 bytes
- levels/The_Puzzle_Pits/LEVEL36.PIT            | Bin 0 -> 663 bytes
- levels/The_Puzzle_Pits/LEVEL37.PIT            | Bin 0 -> 576 bytes
- levels/The_Puzzle_Pits/LEVEL38.PIT            | Bin 0 -> 767 bytes
- levels/The_Puzzle_Pits/LEVEL39.PIT            | Bin 0 -> 679 bytes
- levels/The_Puzzle_Pits/LEVEL40.PIT            | Bin 0 -> 2891 bytes
- levels/The_Puzzle_Pits/LICENSE                | 202 ++++++++++++++++++
- levels/The_Puzzle_Pits/MAGIC.WAV              | Bin 0 -> 11514 bytes
- levels/The_Puzzle_Pits/PLATEOFF.WAV           | Bin 0 -> 3114 bytes
- levels/The_Puzzle_Pits/PLATEON.WAV            | Bin 0 -> 844 bytes
- levels/The_Puzzle_Pits/README.txt             |   5 +
- levels/The_Puzzle_Pits/SCRAPE.WAV             | Bin 0 -> 4604 bytes
- levels/The_Puzzle_Pits/SPLINTER.WAV           | Bin 0 -> 6518 bytes
- levels/The_Puzzle_Pits/TILES1.DAT             | Bin 0 -> 57802 bytes
- levels/The_Puzzle_Pits/TILES2.DAT             | Bin 0 -> 55490 bytes
- levels/The_Puzzle_Pits/TILES3.DAT             | Bin 0 -> 49748 bytes
- levels/The_Puzzle_Pits/WATER.WAV              | Bin 0 -> 6110 bytes
- .../graphics/graphicsinfo.conf                |  33 +++
- .../graphics/pits_font_shadow.png             | Bin 0 -> 3241 bytes
- .../graphics/pits_font_stone.png              | Bin 0 -> 3916 bytes
- .../The_Puzzle_Pits/graphics/pits_stone.png   | Bin 0 -> 161 bytes
- levels/The_Puzzle_Pits/levelinfo.conf         |   8 +
- 59 files changed, 248 insertions(+)
+ levels/The_Puzzle_Pits/CRACK.WAV              |  Bin 0 -> 5204 bytes
+ levels/The_Puzzle_Pits/GLASS.WAV              |  Bin 0 -> 7400 bytes
+ levels/The_Puzzle_Pits/LAVA.WAV               |  Bin 0 -> 11144 bytes
+ levels/The_Puzzle_Pits/LEVEL01.PIT            |  Bin 0 -> 1984 bytes
+ levels/The_Puzzle_Pits/LEVEL02.PIT            |  Bin 0 -> 587 bytes
+ levels/The_Puzzle_Pits/LEVEL03.PIT            |  Bin 0 -> 799 bytes
+ levels/The_Puzzle_Pits/LEVEL04.PIT            |  Bin 0 -> 948 bytes
+ levels/The_Puzzle_Pits/LEVEL05.PIT            |  Bin 0 -> 1323 bytes
+ levels/The_Puzzle_Pits/LEVEL06.PIT            |  Bin 0 -> 795 bytes
+ levels/The_Puzzle_Pits/LEVEL07.PIT            |  Bin 0 -> 737 bytes
+ levels/The_Puzzle_Pits/LEVEL08.PIT            |  Bin 0 -> 681 bytes
+ levels/The_Puzzle_Pits/LEVEL09.PIT            |  Bin 0 -> 956 bytes
+ levels/The_Puzzle_Pits/LEVEL10.PIT            |  Bin 0 -> 1020 bytes
+ levels/The_Puzzle_Pits/LEVEL11.PIT            |  Bin 0 -> 714 bytes
+ levels/The_Puzzle_Pits/LEVEL12.PIT            |  Bin 0 -> 852 bytes
+ levels/The_Puzzle_Pits/LEVEL13.PIT            |  Bin 0 -> 1399 bytes
+ levels/The_Puzzle_Pits/LEVEL14.PIT            |  Bin 0 -> 896 bytes
+ levels/The_Puzzle_Pits/LEVEL15.PIT            |  Bin 0 -> 1156 bytes
+ levels/The_Puzzle_Pits/LEVEL16.PIT            |  Bin 0 -> 726 bytes
+ levels/The_Puzzle_Pits/LEVEL17.PIT            |  Bin 0 -> 957 bytes
+ levels/The_Puzzle_Pits/LEVEL18.PIT            |  Bin 0 -> 1022 bytes
+ levels/The_Puzzle_Pits/LEVEL19.PIT            |  Bin 0 -> 815 bytes
+ levels/The_Puzzle_Pits/LEVEL20.PIT            |  Bin 0 -> 718 bytes
+ levels/The_Puzzle_Pits/LEVEL21.PIT            |  Bin 0 -> 1159 bytes
+ levels/The_Puzzle_Pits/LEVEL22.PIT            |  Bin 0 -> 1453 bytes
+ levels/The_Puzzle_Pits/LEVEL23.PIT            |  Bin 0 -> 1056 bytes
+ levels/The_Puzzle_Pits/LEVEL24.PIT            |  Bin 0 -> 1206 bytes
+ levels/The_Puzzle_Pits/LEVEL25.PIT            |  Bin 0 -> 2384 bytes
+ levels/The_Puzzle_Pits/LEVEL26.PIT            |  Bin 0 -> 907 bytes
+ levels/The_Puzzle_Pits/LEVEL27.PIT            |  Bin 0 -> 1182 bytes
+ levels/The_Puzzle_Pits/LEVEL28.PIT            |  Bin 0 -> 520 bytes
+ levels/The_Puzzle_Pits/LEVEL29.PIT            |  Bin 0 -> 714 bytes
+ levels/The_Puzzle_Pits/LEVEL30.PIT            |  Bin 0 -> 1217 bytes
+ levels/The_Puzzle_Pits/LEVEL31.PIT            |  Bin 0 -> 872 bytes
+ levels/The_Puzzle_Pits/LEVEL32.PIT            |  Bin 0 -> 1019 bytes
+ levels/The_Puzzle_Pits/LEVEL33.PIT            |  Bin 0 -> 790 bytes
+ levels/The_Puzzle_Pits/LEVEL34.PIT            |  Bin 0 -> 579 bytes
+ levels/The_Puzzle_Pits/LEVEL35.PIT            |  Bin 0 -> 931 bytes
+ levels/The_Puzzle_Pits/LEVEL36.PIT            |  Bin 0 -> 663 bytes
+ levels/The_Puzzle_Pits/LEVEL37.PIT            |  Bin 0 -> 576 bytes
+ levels/The_Puzzle_Pits/LEVEL38.PIT            |  Bin 0 -> 767 bytes
+ levels/The_Puzzle_Pits/LEVEL39.PIT            |  Bin 0 -> 679 bytes
+ levels/The_Puzzle_Pits/LEVEL40.PIT            |  Bin 0 -> 2891 bytes
+ levels/The_Puzzle_Pits/LICENSE                |  202 +++
+ levels/The_Puzzle_Pits/MAGIC.WAV              |  Bin 0 -> 11514 bytes
+ levels/The_Puzzle_Pits/PLATEOFF.WAV           |  Bin 0 -> 3114 bytes
+ levels/The_Puzzle_Pits/PLATEON.WAV            |  Bin 0 -> 844 bytes
+ levels/The_Puzzle_Pits/README.txt             |    5 +
+ levels/The_Puzzle_Pits/SCRAPE.WAV             |  Bin 0 -> 4604 bytes
+ levels/The_Puzzle_Pits/SPLINTER.WAV           |  Bin 0 -> 6518 bytes
+ levels/The_Puzzle_Pits/TILES1.DAT             |  Bin 0 -> 57802 bytes
+ levels/The_Puzzle_Pits/TILES2.DAT             |  Bin 0 -> 55490 bytes
+ levels/The_Puzzle_Pits/TILES3.DAT             |  Bin 0 -> 49748 bytes
+ levels/The_Puzzle_Pits/WATER.WAV              |  Bin 0 -> 6110 bytes
+ levels/The_Puzzle_Pits/editorsetup.conf       |  110 ++
+ .../graphics/graphicsinfo.conf                | 1183 +++++++++++++++++
+ .../graphics/pits_elements.png                |  Bin 0 -> 101893 bytes
+ .../graphics/pits_font_shadow.png             |  Bin 0 -> 3241 bytes
+ .../graphics/pits_font_stone.png              |  Bin 0 -> 3916 bytes
+ .../The_Puzzle_Pits/graphics/pits_stone.png   |  Bin 0 -> 161 bytes
+ levels/The_Puzzle_Pits/levelinfo.conf         |    8 +
+ levels/The_Puzzle_Pits/template.level         |  Bin 0 -> 89704 bytes
+ 62 files changed, 1508 insertions(+)
  create mode 100644 levels/The_Puzzle_Pits/CRACK.WAV
  create mode 100644 levels/The_Puzzle_Pits/GLASS.WAV
  create mode 100644 levels/The_Puzzle_Pits/LAVA.WAV
@@ -123,11 +126,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  create mode 100644 levels/The_Puzzle_Pits/TILES2.DAT
  create mode 100644 levels/The_Puzzle_Pits/TILES3.DAT
  create mode 100644 levels/The_Puzzle_Pits/WATER.WAV
+ create mode 100644 levels/The_Puzzle_Pits/editorsetup.conf
  create mode 100644 levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
+ create mode 100644 levels/The_Puzzle_Pits/graphics/pits_elements.png
  create mode 100644 levels/The_Puzzle_Pits/graphics/pits_font_shadow.png
  create mode 100644 levels/The_Puzzle_Pits/graphics/pits_font_stone.png
  create mode 100644 levels/The_Puzzle_Pits/graphics/pits_stone.png
  create mode 100644 levels/The_Puzzle_Pits/levelinfo.conf
+ create mode 100644 levels/The_Puzzle_Pits/template.level
 
 diff --git a/levels/The_Puzzle_Pits/CRACK.WAV b/levels/The_Puzzle_Pits/CRACK.WAV
 new file mode 100644
@@ -3027,12 +3033,128 @@ qC09esd8h+HxxcCkoTNca5QfNrd;^YsxEH`f=U{88Nq|EUVjut}(DJ+h
 literal 0
 HcmV?d00001
 
+diff --git a/levels/The_Puzzle_Pits/editorsetup.conf b/levels/The_Puzzle_Pits/editorsetup.conf
+new file mode 100644
+index 0000000..440f5f6
+--- /dev/null
++++ b/levels/The_Puzzle_Pits/editorsetup.conf
+@@ -0,0 +1,110 @@
++# The Puzzle Pits: R'n'D's editor shows these elements for its levels
++
++custom_1
++custom_2
++custom_3
++custom_4
++custom_5
++custom_6
++custom_7
++custom_8
++custom_9
++custom_10
++custom_11
++custom_12
++custom_13
++custom_14
++custom_15
++custom_16
++custom_17
++custom_18
++custom_19
++custom_20
++custom_21
++custom_22
++custom_23
++custom_24
++custom_25
++custom_26
++custom_27
++custom_28
++custom_29
++custom_157
++custom_188
++custom_189
++custom_190
++custom_191
++custom_30
++custom_31
++custom_32
++custom_33
++custom_34
++custom_35
++custom_36
++custom_37
++custom_38
++custom_39
++custom_40
++custom_41
++custom_42
++custom_43
++custom_44
++custom_45
++custom_46
++custom_47
++custom_48
++custom_49
++custom_50
++custom_51
++custom_52
++custom_53
++custom_54
++custom_55
++custom_64
++custom_65
++custom_66
++custom_67
++custom_68
++custom_69
++custom_70
++custom_71
++custom_72
++custom_73
++custom_74
++custom_75
++custom_76
++custom_77
++custom_78
++custom_79
++custom_80
++custom_81
++custom_82
++custom_83
++custom_84
++custom_85
++custom_86
++custom_95
++custom_96
++custom_97
++custom_98
++custom_99
++custom_100
++custom_101
++custom_102
++custom_103
++custom_104
++custom_105
++custom_106
++custom_107
++custom_108
++custom_109
++custom_110
++custom_111
++custom_112
++custom_113
++custom_114
++custom_115
++custom_116
++custom_117
++custom_118
++custom_119
 diff --git a/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf b/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
 new file mode 100644
-index 0000000..db1036a
+index 0000000..a7997e2
 --- /dev/null
 +++ b/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,1183 @@
 +# The Puzzle Pits' own letters (made by tools/pitsfont.mjs from PLASMA1.FNT)
 +
 +# the scripts' text: engraved, on the game's grey stone
@@ -3066,6 +3188,2457 @@ index 0000000..db1036a
 +font.input_1.MAIN.y:                    0
 +font.input_1.MAIN.width:                32
 +font.input_1.MAIN.height:               32
++
++# the squares of a pit, as R'n'D's editor shows them: custom elements, seen from above
++custom_1:                        pits_elements.png
++custom_1.xpos:                   0
++custom_1.ypos:                   22
++custom_1.frames:                 1
++custom_1.tile_size:              48
++
++custom_2:                        pits_elements.png
++custom_2.xpos:                   0
++custom_2.ypos:                   23
++custom_2.frames:                 1
++custom_2.tile_size:              48
++
++custom_3:                        pits_elements.png
++custom_3.xpos:                   0
++custom_3.ypos:                   24
++custom_3.frames:                 1
++custom_3.tile_size:              48
++
++custom_4:                        pits_elements.png
++custom_4.xpos:                   0
++custom_4.ypos:                   25
++custom_4.frames:                 1
++custom_4.tile_size:              48
++
++custom_5:                        pits_elements.png
++custom_5.xpos:                   0
++custom_5.ypos:                   26
++custom_5.frames:                 1
++custom_5.tile_size:              48
++
++custom_6:                        pits_elements.png
++custom_6.xpos:                   0
++custom_6.ypos:                   27
++custom_6.frames:                 1
++custom_6.tile_size:              48
++
++custom_7:                        pits_elements.png
++custom_7.xpos:                   0
++custom_7.ypos:                   28
++custom_7.frames:                 1
++custom_7.tile_size:              48
++
++custom_8:                        pits_elements.png
++custom_8.xpos:                   0
++custom_8.ypos:                   29
++custom_8.frames:                 1
++custom_8.tile_size:              48
++
++custom_9:                        pits_elements.png
++custom_9.xpos:                   0
++custom_9.ypos:                   30
++custom_9.frames:                 1
++custom_9.tile_size:              48
++
++custom_10:                       pits_elements.png
++custom_10.xpos:                  0
++custom_10.ypos:                  31
++custom_10.frames:                1
++custom_10.tile_size:             48
++
++custom_11:                       pits_elements.png
++custom_11.xpos:                  0
++custom_11.ypos:                  32
++custom_11.frames:                1
++custom_11.tile_size:             48
++
++custom_12:                       pits_elements.png
++custom_12.xpos:                  0
++custom_12.ypos:                  33
++custom_12.frames:                1
++custom_12.tile_size:             48
++
++custom_13:                       pits_elements.png
++custom_13.xpos:                  0
++custom_13.ypos:                  34
++custom_13.frames:                1
++custom_13.tile_size:             48
++
++custom_14:                       pits_elements.png
++custom_14.xpos:                  0
++custom_14.ypos:                  35
++custom_14.frames:                1
++custom_14.tile_size:             48
++
++custom_15:                       pits_elements.png
++custom_15.xpos:                  0
++custom_15.ypos:                  36
++custom_15.frames:                1
++custom_15.tile_size:             48
++
++custom_16:                       pits_elements.png
++custom_16.xpos:                  0
++custom_16.ypos:                  37
++custom_16.frames:                1
++custom_16.tile_size:             48
++
++custom_17:                       pits_elements.png
++custom_17.xpos:                  0
++custom_17.ypos:                  38
++custom_17.frames:                4
++custom_17.tile_size:             48
++custom_17.delay:                 8
++
++custom_18:                       pits_elements.png
++custom_18.xpos:                  0
++custom_18.ypos:                  39
++custom_18.frames:                4
++custom_18.tile_size:             48
++custom_18.delay:                 8
++
++custom_19:                       pits_elements.png
++custom_19.xpos:                  0
++custom_19.ypos:                  40
++custom_19.frames:                1
++custom_19.tile_size:             48
++
++custom_20:                       pits_elements.png
++custom_20.xpos:                  0
++custom_20.ypos:                  41
++custom_20.frames:                1
++custom_20.tile_size:             48
++
++custom_21:                       pits_elements.png
++custom_21.xpos:                  0
++custom_21.ypos:                  42
++custom_21.frames:                1
++custom_21.tile_size:             48
++
++custom_22:                       pits_elements.png
++custom_22.xpos:                  0
++custom_22.ypos:                  43
++custom_22.frames:                1
++custom_22.tile_size:             48
++
++custom_23:                       pits_elements.png
++custom_23.xpos:                  0
++custom_23.ypos:                  44
++custom_23.frames:                1
++custom_23.tile_size:             48
++
++custom_24:                       pits_elements.png
++custom_24.xpos:                  0
++custom_24.ypos:                  45
++custom_24.frames:                1
++custom_24.tile_size:             48
++
++custom_25:                       pits_elements.png
++custom_25.xpos:                  0
++custom_25.ypos:                  46
++custom_25.frames:                1
++custom_25.tile_size:             48
++
++custom_26:                       pits_elements.png
++custom_26.xpos:                  0
++custom_26.ypos:                  47
++custom_26.frames:                1
++custom_26.tile_size:             48
++
++custom_27:                       pits_elements.png
++custom_27.xpos:                  0
++custom_27.ypos:                  48
++custom_27.frames:                1
++custom_27.tile_size:             48
++
++custom_28:                       pits_elements.png
++custom_28.xpos:                  0
++custom_28.ypos:                  49
++custom_28.frames:                1
++custom_28.tile_size:             48
++
++custom_29:                       pits_elements.png
++custom_29.xpos:                  0
++custom_29.ypos:                  50
++custom_29.frames:                1
++custom_29.tile_size:             48
++
++custom_30:                       pits_elements.png
++custom_30.xpos:                  0
++custom_30.ypos:                  51
++custom_30.frames:                1
++custom_30.tile_size:             48
++
++custom_31:                       pits_elements.png
++custom_31.xpos:                  0
++custom_31.ypos:                  52
++custom_31.frames:                1
++custom_31.tile_size:             48
++
++custom_32:                       pits_elements.png
++custom_32.xpos:                  0
++custom_32.ypos:                  53
++custom_32.frames:                1
++custom_32.tile_size:             48
++
++custom_33:                       pits_elements.png
++custom_33.xpos:                  0
++custom_33.ypos:                  54
++custom_33.frames:                1
++custom_33.tile_size:             48
++
++custom_34:                       pits_elements.png
++custom_34.xpos:                  0
++custom_34.ypos:                  55
++custom_34.frames:                1
++custom_34.tile_size:             48
++
++custom_35:                       pits_elements.png
++custom_35.xpos:                  0
++custom_35.ypos:                  56
++custom_35.frames:                1
++custom_35.tile_size:             48
++
++custom_36:                       pits_elements.png
++custom_36.xpos:                  0
++custom_36.ypos:                  57
++custom_36.frames:                1
++custom_36.tile_size:             48
++
++custom_37:                       pits_elements.png
++custom_37.xpos:                  0
++custom_37.ypos:                  58
++custom_37.frames:                1
++custom_37.tile_size:             48
++
++custom_38:                       pits_elements.png
++custom_38.xpos:                  0
++custom_38.ypos:                  59
++custom_38.frames:                1
++custom_38.tile_size:             48
++
++custom_39:                       pits_elements.png
++custom_39.xpos:                  0
++custom_39.ypos:                  60
++custom_39.frames:                1
++custom_39.tile_size:             48
++
++custom_40:                       pits_elements.png
++custom_40.xpos:                  0
++custom_40.ypos:                  61
++custom_40.frames:                1
++custom_40.tile_size:             48
++
++custom_41:                       pits_elements.png
++custom_41.xpos:                  0
++custom_41.ypos:                  62
++custom_41.frames:                1
++custom_41.tile_size:             48
++
++custom_42:                       pits_elements.png
++custom_42.xpos:                  0
++custom_42.ypos:                  63
++custom_42.frames:                1
++custom_42.tile_size:             48
++
++custom_43:                       pits_elements.png
++custom_43.xpos:                  0
++custom_43.ypos:                  64
++custom_43.frames:                1
++custom_43.tile_size:             48
++
++custom_44:                       pits_elements.png
++custom_44.xpos:                  0
++custom_44.ypos:                  65
++custom_44.frames:                1
++custom_44.tile_size:             48
++
++custom_45:                       pits_elements.png
++custom_45.xpos:                  0
++custom_45.ypos:                  66
++custom_45.frames:                1
++custom_45.tile_size:             48
++
++custom_46:                       pits_elements.png
++custom_46.xpos:                  0
++custom_46.ypos:                  67
++custom_46.frames:                1
++custom_46.tile_size:             48
++
++custom_47:                       pits_elements.png
++custom_47.xpos:                  0
++custom_47.ypos:                  68
++custom_47.frames:                1
++custom_47.tile_size:             48
++
++custom_48:                       pits_elements.png
++custom_48.xpos:                  0
++custom_48.ypos:                  69
++custom_48.frames:                1
++custom_48.tile_size:             48
++
++custom_49:                       pits_elements.png
++custom_49.xpos:                  0
++custom_49.ypos:                  70
++custom_49.frames:                1
++custom_49.tile_size:             48
++
++custom_50:                       pits_elements.png
++custom_50.xpos:                  0
++custom_50.ypos:                  71
++custom_50.frames:                1
++custom_50.tile_size:             48
++
++custom_51:                       pits_elements.png
++custom_51.xpos:                  0
++custom_51.ypos:                  72
++custom_51.frames:                1
++custom_51.tile_size:             48
++
++custom_52:                       pits_elements.png
++custom_52.xpos:                  0
++custom_52.ypos:                  73
++custom_52.frames:                1
++custom_52.tile_size:             48
++
++custom_53:                       pits_elements.png
++custom_53.xpos:                  0
++custom_53.ypos:                  74
++custom_53.frames:                1
++custom_53.tile_size:             48
++
++custom_54:                       pits_elements.png
++custom_54.xpos:                  0
++custom_54.ypos:                  75
++custom_54.frames:                1
++custom_54.tile_size:             48
++
++custom_55:                       pits_elements.png
++custom_55.xpos:                  0
++custom_55.ypos:                  76
++custom_55.frames:                1
++custom_55.tile_size:             48
++
++custom_56:                       pits_elements.png
++custom_56.xpos:                  0
++custom_56.ypos:                  77
++custom_56.frames:                1
++custom_56.tile_size:             48
++
++custom_57:                       pits_elements.png
++custom_57.xpos:                  0
++custom_57.ypos:                  78
++custom_57.frames:                1
++custom_57.tile_size:             48
++
++custom_58:                       pits_elements.png
++custom_58.xpos:                  0
++custom_58.ypos:                  79
++custom_58.frames:                1
++custom_58.tile_size:             48
++
++custom_59:                       pits_elements.png
++custom_59.xpos:                  0
++custom_59.ypos:                  80
++custom_59.frames:                1
++custom_59.tile_size:             48
++
++custom_60:                       pits_elements.png
++custom_60.xpos:                  0
++custom_60.ypos:                  81
++custom_60.frames:                1
++custom_60.tile_size:             48
++
++custom_61:                       pits_elements.png
++custom_61.xpos:                  0
++custom_61.ypos:                  82
++custom_61.frames:                1
++custom_61.tile_size:             48
++
++custom_62:                       pits_elements.png
++custom_62.xpos:                  0
++custom_62.ypos:                  83
++custom_62.frames:                1
++custom_62.tile_size:             48
++
++custom_63:                       pits_elements.png
++custom_63.xpos:                  0
++custom_63.ypos:                  84
++custom_63.frames:                1
++custom_63.tile_size:             48
++
++custom_64:                       pits_elements.png
++custom_64.xpos:                  0
++custom_64.ypos:                  85
++custom_64.frames:                1
++custom_64.tile_size:             48
++
++custom_65:                       pits_elements.png
++custom_65.xpos:                  0
++custom_65.ypos:                  86
++custom_65.frames:                1
++custom_65.tile_size:             48
++
++custom_66:                       pits_elements.png
++custom_66.xpos:                  0
++custom_66.ypos:                  87
++custom_66.frames:                1
++custom_66.tile_size:             48
++
++custom_67:                       pits_elements.png
++custom_67.xpos:                  0
++custom_67.ypos:                  88
++custom_67.frames:                1
++custom_67.tile_size:             48
++
++custom_68:                       pits_elements.png
++custom_68.xpos:                  0
++custom_68.ypos:                  89
++custom_68.frames:                1
++custom_68.tile_size:             48
++
++custom_69:                       pits_elements.png
++custom_69.xpos:                  0
++custom_69.ypos:                  90
++custom_69.frames:                1
++custom_69.tile_size:             48
++
++custom_70:                       pits_elements.png
++custom_70.xpos:                  0
++custom_70.ypos:                  91
++custom_70.frames:                1
++custom_70.tile_size:             48
++
++custom_71:                       pits_elements.png
++custom_71.xpos:                  0
++custom_71.ypos:                  92
++custom_71.frames:                1
++custom_71.tile_size:             48
++
++custom_72:                       pits_elements.png
++custom_72.xpos:                  0
++custom_72.ypos:                  93
++custom_72.frames:                1
++custom_72.tile_size:             48
++
++custom_73:                       pits_elements.png
++custom_73.xpos:                  0
++custom_73.ypos:                  94
++custom_73.frames:                1
++custom_73.tile_size:             48
++
++custom_74:                       pits_elements.png
++custom_74.xpos:                  0
++custom_74.ypos:                  95
++custom_74.frames:                1
++custom_74.tile_size:             48
++
++custom_75:                       pits_elements.png
++custom_75.xpos:                  0
++custom_75.ypos:                  96
++custom_75.frames:                1
++custom_75.tile_size:             48
++
++custom_76:                       pits_elements.png
++custom_76.xpos:                  0
++custom_76.ypos:                  97
++custom_76.frames:                1
++custom_76.tile_size:             48
++
++custom_77:                       pits_elements.png
++custom_77.xpos:                  0
++custom_77.ypos:                  98
++custom_77.frames:                1
++custom_77.tile_size:             48
++
++custom_78:                       pits_elements.png
++custom_78.xpos:                  0
++custom_78.ypos:                  99
++custom_78.frames:                1
++custom_78.tile_size:             48
++
++custom_79:                       pits_elements.png
++custom_79.xpos:                  0
++custom_79.ypos:                  100
++custom_79.frames:                1
++custom_79.tile_size:             48
++
++custom_80:                       pits_elements.png
++custom_80.xpos:                  0
++custom_80.ypos:                  101
++custom_80.frames:                1
++custom_80.tile_size:             48
++
++custom_81:                       pits_elements.png
++custom_81.xpos:                  0
++custom_81.ypos:                  102
++custom_81.frames:                1
++custom_81.tile_size:             48
++
++custom_82:                       pits_elements.png
++custom_82.xpos:                  0
++custom_82.ypos:                  103
++custom_82.frames:                1
++custom_82.tile_size:             48
++
++custom_83:                       pits_elements.png
++custom_83.xpos:                  0
++custom_83.ypos:                  104
++custom_83.frames:                1
++custom_83.tile_size:             48
++
++custom_84:                       pits_elements.png
++custom_84.xpos:                  0
++custom_84.ypos:                  105
++custom_84.frames:                1
++custom_84.tile_size:             48
++
++custom_85:                       pits_elements.png
++custom_85.xpos:                  0
++custom_85.ypos:                  106
++custom_85.frames:                1
++custom_85.tile_size:             48
++
++custom_86:                       pits_elements.png
++custom_86.xpos:                  0
++custom_86.ypos:                  107
++custom_86.frames:                1
++custom_86.tile_size:             48
++
++custom_87:                       pits_elements.png
++custom_87.xpos:                  0
++custom_87.ypos:                  108
++custom_87.frames:                1
++custom_87.tile_size:             48
++
++custom_88:                       pits_elements.png
++custom_88.xpos:                  0
++custom_88.ypos:                  109
++custom_88.frames:                1
++custom_88.tile_size:             48
++
++custom_89:                       pits_elements.png
++custom_89.xpos:                  0
++custom_89.ypos:                  110
++custom_89.frames:                1
++custom_89.tile_size:             48
++
++custom_90:                       pits_elements.png
++custom_90.xpos:                  0
++custom_90.ypos:                  111
++custom_90.frames:                1
++custom_90.tile_size:             48
++
++custom_91:                       pits_elements.png
++custom_91.xpos:                  0
++custom_91.ypos:                  112
++custom_91.frames:                1
++custom_91.tile_size:             48
++
++custom_92:                       pits_elements.png
++custom_92.xpos:                  0
++custom_92.ypos:                  113
++custom_92.frames:                1
++custom_92.tile_size:             48
++
++custom_93:                       pits_elements.png
++custom_93.xpos:                  0
++custom_93.ypos:                  114
++custom_93.frames:                1
++custom_93.tile_size:             48
++
++custom_94:                       pits_elements.png
++custom_94.xpos:                  0
++custom_94.ypos:                  115
++custom_94.frames:                1
++custom_94.tile_size:             48
++
++custom_95:                       pits_elements.png
++custom_95.xpos:                  0
++custom_95.ypos:                  116
++custom_95.frames:                1
++custom_95.tile_size:             48
++
++custom_96:                       pits_elements.png
++custom_96.xpos:                  0
++custom_96.ypos:                  117
++custom_96.frames:                1
++custom_96.tile_size:             48
++
++custom_97:                       pits_elements.png
++custom_97.xpos:                  0
++custom_97.ypos:                  118
++custom_97.frames:                1
++custom_97.tile_size:             48
++
++custom_98:                       pits_elements.png
++custom_98.xpos:                  0
++custom_98.ypos:                  119
++custom_98.frames:                1
++custom_98.tile_size:             48
++
++custom_99:                       pits_elements.png
++custom_99.xpos:                  0
++custom_99.ypos:                  120
++custom_99.frames:                1
++custom_99.tile_size:             48
++
++custom_100:                      pits_elements.png
++custom_100.xpos:                 0
++custom_100.ypos:                 121
++custom_100.frames:               1
++custom_100.tile_size:            48
++
++custom_101:                      pits_elements.png
++custom_101.xpos:                 0
++custom_101.ypos:                 122
++custom_101.frames:               1
++custom_101.tile_size:            48
++
++custom_102:                      pits_elements.png
++custom_102.xpos:                 0
++custom_102.ypos:                 123
++custom_102.frames:               1
++custom_102.tile_size:            48
++
++custom_103:                      pits_elements.png
++custom_103.xpos:                 0
++custom_103.ypos:                 124
++custom_103.frames:               1
++custom_103.tile_size:            48
++
++custom_104:                      pits_elements.png
++custom_104.xpos:                 0
++custom_104.ypos:                 125
++custom_104.frames:               1
++custom_104.tile_size:            48
++
++custom_105:                      pits_elements.png
++custom_105.xpos:                 0
++custom_105.ypos:                 126
++custom_105.frames:               1
++custom_105.tile_size:            48
++
++custom_106:                      pits_elements.png
++custom_106.xpos:                 0
++custom_106.ypos:                 127
++custom_106.frames:               1
++custom_106.tile_size:            48
++
++custom_107:                      pits_elements.png
++custom_107.xpos:                 0
++custom_107.ypos:                 128
++custom_107.frames:               1
++custom_107.tile_size:            48
++
++custom_108:                      pits_elements.png
++custom_108.xpos:                 0
++custom_108.ypos:                 129
++custom_108.frames:               1
++custom_108.tile_size:            48
++
++custom_109:                      pits_elements.png
++custom_109.xpos:                 0
++custom_109.ypos:                 130
++custom_109.frames:               1
++custom_109.tile_size:            48
++
++custom_110:                      pits_elements.png
++custom_110.xpos:                 0
++custom_110.ypos:                 131
++custom_110.frames:               1
++custom_110.tile_size:            48
++
++custom_111:                      pits_elements.png
++custom_111.xpos:                 0
++custom_111.ypos:                 132
++custom_111.frames:               1
++custom_111.tile_size:            48
++
++custom_112:                      pits_elements.png
++custom_112.xpos:                 0
++custom_112.ypos:                 133
++custom_112.frames:               1
++custom_112.tile_size:            48
++
++custom_113:                      pits_elements.png
++custom_113.xpos:                 0
++custom_113.ypos:                 134
++custom_113.frames:               1
++custom_113.tile_size:            48
++
++custom_114:                      pits_elements.png
++custom_114.xpos:                 0
++custom_114.ypos:                 135
++custom_114.frames:               1
++custom_114.tile_size:            48
++
++custom_115:                      pits_elements.png
++custom_115.xpos:                 0
++custom_115.ypos:                 136
++custom_115.frames:               1
++custom_115.tile_size:            48
++
++custom_116:                      pits_elements.png
++custom_116.xpos:                 0
++custom_116.ypos:                 137
++custom_116.frames:               1
++custom_116.tile_size:            48
++
++custom_117:                      pits_elements.png
++custom_117.xpos:                 0
++custom_117.ypos:                 138
++custom_117.frames:               1
++custom_117.tile_size:            48
++
++custom_118:                      pits_elements.png
++custom_118.xpos:                 0
++custom_118.ypos:                 139
++custom_118.frames:               1
++custom_118.tile_size:            48
++
++custom_119:                      pits_elements.png
++custom_119.xpos:                 0
++custom_119.ypos:                 140
++custom_119.frames:               1
++custom_119.tile_size:            48
++
++custom_120:                      pits_elements.png
++custom_120.xpos:                 0
++custom_120.ypos:                 141
++custom_120.frames:               1
++custom_120.tile_size:            48
++
++custom_121:                      pits_elements.png
++custom_121.xpos:                 0
++custom_121.ypos:                 142
++custom_121.frames:               1
++custom_121.tile_size:            48
++
++custom_122:                      pits_elements.png
++custom_122.xpos:                 0
++custom_122.ypos:                 143
++custom_122.frames:               1
++custom_122.tile_size:            48
++
++custom_123:                      pits_elements.png
++custom_123.xpos:                 0
++custom_123.ypos:                 144
++custom_123.frames:               1
++custom_123.tile_size:            48
++
++custom_124:                      pits_elements.png
++custom_124.xpos:                 0
++custom_124.ypos:                 145
++custom_124.frames:               1
++custom_124.tile_size:            48
++
++custom_125:                      pits_elements.png
++custom_125.xpos:                 0
++custom_125.ypos:                 146
++custom_125.frames:               1
++custom_125.tile_size:            48
++
++custom_126:                      pits_elements.png
++custom_126.xpos:                 0
++custom_126.ypos:                 147
++custom_126.frames:               1
++custom_126.tile_size:            48
++
++custom_127:                      pits_elements.png
++custom_127.xpos:                 0
++custom_127.ypos:                 148
++custom_127.frames:               1
++custom_127.tile_size:            48
++
++custom_128:                      pits_elements.png
++custom_128.xpos:                 0
++custom_128.ypos:                 149
++custom_128.frames:               1
++custom_128.tile_size:            48
++
++custom_129:                      pits_elements.png
++custom_129.xpos:                 0
++custom_129.ypos:                 150
++custom_129.frames:               1
++custom_129.tile_size:            48
++
++custom_130:                      pits_elements.png
++custom_130.xpos:                 0
++custom_130.ypos:                 151
++custom_130.frames:               1
++custom_130.tile_size:            48
++
++custom_131:                      pits_elements.png
++custom_131.xpos:                 0
++custom_131.ypos:                 152
++custom_131.frames:               1
++custom_131.tile_size:            48
++
++custom_132:                      pits_elements.png
++custom_132.xpos:                 0
++custom_132.ypos:                 153
++custom_132.frames:               1
++custom_132.tile_size:            48
++
++custom_133:                      pits_elements.png
++custom_133.xpos:                 0
++custom_133.ypos:                 154
++custom_133.frames:               1
++custom_133.tile_size:            48
++
++custom_134:                      pits_elements.png
++custom_134.xpos:                 0
++custom_134.ypos:                 155
++custom_134.frames:               1
++custom_134.tile_size:            48
++
++custom_135:                      pits_elements.png
++custom_135.xpos:                 0
++custom_135.ypos:                 156
++custom_135.frames:               1
++custom_135.tile_size:            48
++
++custom_136:                      pits_elements.png
++custom_136.xpos:                 0
++custom_136.ypos:                 157
++custom_136.frames:               1
++custom_136.tile_size:            48
++
++custom_137:                      pits_elements.png
++custom_137.xpos:                 0
++custom_137.ypos:                 158
++custom_137.frames:               1
++custom_137.tile_size:            48
++
++custom_138:                      pits_elements.png
++custom_138.xpos:                 0
++custom_138.ypos:                 159
++custom_138.frames:               1
++custom_138.tile_size:            48
++
++custom_139:                      pits_elements.png
++custom_139.xpos:                 0
++custom_139.ypos:                 160
++custom_139.frames:               1
++custom_139.tile_size:            48
++
++custom_140:                      pits_elements.png
++custom_140.xpos:                 0
++custom_140.ypos:                 161
++custom_140.frames:               1
++custom_140.tile_size:            48
++
++custom_141:                      pits_elements.png
++custom_141.xpos:                 0
++custom_141.ypos:                 162
++custom_141.frames:               1
++custom_141.tile_size:            48
++
++custom_142:                      pits_elements.png
++custom_142.xpos:                 0
++custom_142.ypos:                 163
++custom_142.frames:               1
++custom_142.tile_size:            48
++
++custom_143:                      pits_elements.png
++custom_143.xpos:                 0
++custom_143.ypos:                 164
++custom_143.frames:               1
++custom_143.tile_size:            48
++
++custom_144:                      pits_elements.png
++custom_144.xpos:                 0
++custom_144.ypos:                 165
++custom_144.frames:               1
++custom_144.tile_size:            48
++
++custom_145:                      pits_elements.png
++custom_145.xpos:                 0
++custom_145.ypos:                 166
++custom_145.frames:               1
++custom_145.tile_size:            48
++
++custom_146:                      pits_elements.png
++custom_146.xpos:                 0
++custom_146.ypos:                 167
++custom_146.frames:               1
++custom_146.tile_size:            48
++
++custom_147:                      pits_elements.png
++custom_147.xpos:                 0
++custom_147.ypos:                 168
++custom_147.frames:               1
++custom_147.tile_size:            48
++
++custom_148:                      pits_elements.png
++custom_148.xpos:                 0
++custom_148.ypos:                 169
++custom_148.frames:               1
++custom_148.tile_size:            48
++
++custom_149:                      pits_elements.png
++custom_149.xpos:                 0
++custom_149.ypos:                 170
++custom_149.frames:               1
++custom_149.tile_size:            48
++
++custom_150:                      pits_elements.png
++custom_150.xpos:                 0
++custom_150.ypos:                 171
++custom_150.frames:               1
++custom_150.tile_size:            48
++
++custom_151:                      pits_elements.png
++custom_151.xpos:                 0
++custom_151.ypos:                 172
++custom_151.frames:               1
++custom_151.tile_size:            48
++
++custom_152:                      pits_elements.png
++custom_152.xpos:                 0
++custom_152.ypos:                 173
++custom_152.frames:               1
++custom_152.tile_size:            48
++
++custom_153:                      pits_elements.png
++custom_153.xpos:                 0
++custom_153.ypos:                 174
++custom_153.frames:               1
++custom_153.tile_size:            48
++
++custom_154:                      pits_elements.png
++custom_154.xpos:                 0
++custom_154.ypos:                 175
++custom_154.frames:               1
++custom_154.tile_size:            48
++
++custom_155:                      pits_elements.png
++custom_155.xpos:                 0
++custom_155.ypos:                 176
++custom_155.frames:               1
++custom_155.tile_size:            48
++
++custom_156:                      pits_elements.png
++custom_156.xpos:                 0
++custom_156.ypos:                 177
++custom_156.frames:               1
++custom_156.tile_size:            48
++
++custom_157:                      pits_elements.png
++custom_157.xpos:                 0
++custom_157.ypos:                 178
++custom_157.frames:               1
++custom_157.tile_size:            48
++
++custom_158:                      pits_elements.png
++custom_158.xpos:                 0
++custom_158.ypos:                 179
++custom_158.frames:               1
++custom_158.tile_size:            48
++
++custom_159:                      pits_elements.png
++custom_159.xpos:                 0
++custom_159.ypos:                 180
++custom_159.frames:               1
++custom_159.tile_size:            48
++
++custom_160:                      pits_elements.png
++custom_160.xpos:                 0
++custom_160.ypos:                 181
++custom_160.frames:               1
++custom_160.tile_size:            48
++
++custom_161:                      pits_elements.png
++custom_161.xpos:                 0
++custom_161.ypos:                 182
++custom_161.frames:               1
++custom_161.tile_size:            48
++
++custom_162:                      pits_elements.png
++custom_162.xpos:                 0
++custom_162.ypos:                 183
++custom_162.frames:               1
++custom_162.tile_size:            48
++
++custom_163:                      pits_elements.png
++custom_163.xpos:                 0
++custom_163.ypos:                 184
++custom_163.frames:               1
++custom_163.tile_size:            48
++
++custom_164:                      pits_elements.png
++custom_164.xpos:                 0
++custom_164.ypos:                 185
++custom_164.frames:               1
++custom_164.tile_size:            48
++
++custom_165:                      pits_elements.png
++custom_165.xpos:                 0
++custom_165.ypos:                 186
++custom_165.frames:               1
++custom_165.tile_size:            48
++
++custom_166:                      pits_elements.png
++custom_166.xpos:                 0
++custom_166.ypos:                 187
++custom_166.frames:               1
++custom_166.tile_size:            48
++
++custom_167:                      pits_elements.png
++custom_167.xpos:                 0
++custom_167.ypos:                 188
++custom_167.frames:               1
++custom_167.tile_size:            48
++
++custom_168:                      pits_elements.png
++custom_168.xpos:                 0
++custom_168.ypos:                 189
++custom_168.frames:               1
++custom_168.tile_size:            48
++
++custom_169:                      pits_elements.png
++custom_169.xpos:                 0
++custom_169.ypos:                 190
++custom_169.frames:               1
++custom_169.tile_size:            48
++
++custom_170:                      pits_elements.png
++custom_170.xpos:                 0
++custom_170.ypos:                 191
++custom_170.frames:               1
++custom_170.tile_size:            48
++
++custom_171:                      pits_elements.png
++custom_171.xpos:                 0
++custom_171.ypos:                 192
++custom_171.frames:               1
++custom_171.tile_size:            48
++
++custom_172:                      pits_elements.png
++custom_172.xpos:                 0
++custom_172.ypos:                 193
++custom_172.frames:               1
++custom_172.tile_size:            48
++
++custom_173:                      pits_elements.png
++custom_173.xpos:                 0
++custom_173.ypos:                 194
++custom_173.frames:               1
++custom_173.tile_size:            48
++
++custom_174:                      pits_elements.png
++custom_174.xpos:                 0
++custom_174.ypos:                 195
++custom_174.frames:               1
++custom_174.tile_size:            48
++
++custom_175:                      pits_elements.png
++custom_175.xpos:                 0
++custom_175.ypos:                 196
++custom_175.frames:               1
++custom_175.tile_size:            48
++
++custom_176:                      pits_elements.png
++custom_176.xpos:                 0
++custom_176.ypos:                 197
++custom_176.frames:               1
++custom_176.tile_size:            48
++
++custom_177:                      pits_elements.png
++custom_177.xpos:                 0
++custom_177.ypos:                 198
++custom_177.frames:               1
++custom_177.tile_size:            48
++
++custom_178:                      pits_elements.png
++custom_178.xpos:                 0
++custom_178.ypos:                 199
++custom_178.frames:               1
++custom_178.tile_size:            48
++
++custom_179:                      pits_elements.png
++custom_179.xpos:                 0
++custom_179.ypos:                 200
++custom_179.frames:               1
++custom_179.tile_size:            48
++
++custom_180:                      pits_elements.png
++custom_180.xpos:                 0
++custom_180.ypos:                 201
++custom_180.frames:               1
++custom_180.tile_size:            48
++
++custom_181:                      pits_elements.png
++custom_181.xpos:                 0
++custom_181.ypos:                 202
++custom_181.frames:               1
++custom_181.tile_size:            48
++
++custom_182:                      pits_elements.png
++custom_182.xpos:                 0
++custom_182.ypos:                 203
++custom_182.frames:               1
++custom_182.tile_size:            48
++
++custom_183:                      pits_elements.png
++custom_183.xpos:                 0
++custom_183.ypos:                 204
++custom_183.frames:               1
++custom_183.tile_size:            48
++
++custom_184:                      pits_elements.png
++custom_184.xpos:                 0
++custom_184.ypos:                 205
++custom_184.frames:               1
++custom_184.tile_size:            48
++
++custom_185:                      pits_elements.png
++custom_185.xpos:                 0
++custom_185.ypos:                 206
++custom_185.frames:               1
++custom_185.tile_size:            48
++
++custom_186:                      pits_elements.png
++custom_186.xpos:                 0
++custom_186.ypos:                 207
++custom_186.frames:               1
++custom_186.tile_size:            48
++
++custom_187:                      pits_elements.png
++custom_187.xpos:                 0
++custom_187.ypos:                 208
++custom_187.frames:               1
++custom_187.tile_size:            48
++
++custom_188:                      pits_elements.png
++custom_188.xpos:                 0
++custom_188.ypos:                 209
++custom_188.frames:               1
++custom_188.tile_size:            48
++
++custom_189:                      pits_elements.png
++custom_189.xpos:                 0
++custom_189.ypos:                 210
++custom_189.frames:               1
++custom_189.tile_size:            48
++
++custom_190:                      pits_elements.png
++custom_190.xpos:                 0
++custom_190.ypos:                 211
++custom_190.frames:               1
++custom_190.tile_size:            48
++
++custom_191:                      pits_elements.png
++custom_191.xpos:                 0
++custom_191.ypos:                 212
++custom_191.frames:               1
++custom_191.tile_size:            48
++
+diff --git a/levels/The_Puzzle_Pits/graphics/pits_elements.png b/levels/The_Puzzle_Pits/graphics/pits_elements.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..89be31bdfb6415a9141aca54759ba56d373e977f
+GIT binary patch
+literal 101893
+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
+b|M6cq?R%hQMe!E~1_lOCS3j3^P6<r_{}!!u
+
+literal 0
+HcmV?d00001
+
 diff --git a/levels/The_Puzzle_Pits/graphics/pits_font_shadow.png b/levels/The_Puzzle_Pits/graphics/pits_font_shadow.png
 new file mode 100644
 index 0000000000000000000000000000000000000000..cd4d53740697a08b2e79995cc01d6288d7068cd7
@@ -3255,6 +5828,156 @@ index 0000000..eb6aca6
 +first_level:                    1
 +filename:                       LEVEL%02d.PIT
 +filetype:                       PITS
+diff --git a/levels/The_Puzzle_Pits/template.level b/levels/The_Puzzle_Pits/template.level
+new file mode 100644
+index 0000000000000000000000000000000000000000..3c80f0cc2d0f15ba513e198b1ab7775fa52b346b
+GIT binary patch
+literal 89704
+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
+MB+sP4q{yTM0Mw8yz5oCK
+
+literal 0
+HcmV?d00001
+
 -- 
 2.56.0
 

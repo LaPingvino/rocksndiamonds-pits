@@ -1,30 +1,32 @@
-From 3304301c172040452cc6f864c3ed07d22d493c84 Mon Sep 17 00:00:00 2001
+From de56a84925dfe7bb9c9cbc73c56dac6aa181275a Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 19:28:02 +0000
+Date: Wed, 28 Oct 2026 19:46:26 +0000
 Subject: [PATCH 1/3] The Puzzle Pits engine's place in R'n'D: hooks and
  interface
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01T523s2LnR11HQaMAgNseiX
 ---
- src/Makefile                | 12 ++++-
- src/editor.c                |  1 +
- src/files.c                 | 87 +++++++++++++++++++++++++++++++++++++
- src/game.c                  | 85 ++++++++++++++++++++++++++++++++++++
- src/game.h                  |  2 +
- src/game_pits/Makefile      | 38 ++++++++++++++++
- src/game_pits/export_pits.h | 51 ++++++++++++++++++++++
- src/game_pits/game_pits.h   | 12 +++++
- src/main.h                  |  7 ++-
- src/screens.c               |  1 +
- src/tools.c                 | 10 +++++
- 11 files changed, 302 insertions(+), 4 deletions(-)
+ src/Makefile                |  13 +-
+ src/editor.c                |  58 ++++++++
+ src/files.c                 | 258 ++++++++++++++++++++++++++++++++++++
+ src/game.c                  |  85 ++++++++++++
+ src/game.h                  |   2 +
+ src/game_pits/Makefile      |  38 ++++++
+ src/game_pits/export_pits.h |  51 +++++++
+ src/game_pits/game_pits.h   |  12 ++
+ src/game_pits_elements.inc  | 112 ++++++++++++++++
+ src/main.h                  |   7 +-
+ src/screens.c               |   1 +
+ src/tools.c                 |  10 ++
+ 12 files changed, 643 insertions(+), 4 deletions(-)
  create mode 100644 src/game_pits/Makefile
  create mode 100644 src/game_pits/export_pits.h
  create mode 100644 src/game_pits/game_pits.h
+ create mode 100644 src/game_pits_elements.inc
 
 diff --git a/src/Makefile b/src/Makefile
-index 4a05cff..7bad7d0 100644
+index 4a05cff..10fdb94 100644
 --- a/src/Makefile
 +++ b/src/Makefile
 @@ -266,7 +266,10 @@ GAME_SP = $(GAME_SP_DIR)/game_sp.a
@@ -48,20 +50,21 @@ index 4a05cff..7bad7d0 100644
  
  $(PROGNAME): $(RNDLIBS) $(TIMESTAMP_FILE) $(COMMIT_HASH_FILE) $(OBJS) $(ICON)
  	$(CC) $(OBJS) $(ICON) $(RNDLIBS) $(LDFLAGS) -o $(PROGNAME)
-@@ -322,6 +325,11 @@ game_sp_dir:
+@@ -322,6 +325,12 @@ game_sp_dir:
  $(GAME_SP):
  	@$(MAKE) -C $(GAME_SP_DIR)
  
 +game_pits_dir:
 +	@$(MAKE) -C $(GAME_PITS_DIR)
-+$(GAME_PITS):
++# rebuilt (and the program relinked) when the engine's sources change
++$(GAME_PITS): $(wildcard $(GAME_PITS_DIR)/*.c $(GAME_PITS_DIR)/*.h)
 +	@$(MAKE) -C $(GAME_PITS_DIR)
 +
  game_mm_dir:
  	@$(MAKE) -C $(GAME_MM_DIR)
  $(GAME_MM):
 diff --git a/src/editor.c b/src/editor.c
-index 8f2b5b9..7a26f53 100644
+index 8f2b5b9..600e470 100644
 --- a/src/editor.c
 +++ b/src/editor.c
 @@ -2601,6 +2601,7 @@ static struct ValueTextInfo options_game_engine_type[] =
@@ -72,8 +75,86 @@ index 8f2b5b9..7a26f53 100644
  
    { -1,					NULL				}
  };
+@@ -8645,6 +8646,33 @@ static void ReinitializeElementList_EnableSections(void)
+     setup_editor_el_mirror_magic	= FALSE;
+     setup_editor_el_deflektor		= FALSE;
+   }
++  else if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
++  {
++    // a Puzzle Pits level: the squares of a pit, as its level set lists
++    // them (editorsetup.conf: custom elements, the ground and what stands
++    // on it), whatever the editor setup
++    setup_editor_el_players		= FALSE;
++    setup_editor_el_boulderdash		= FALSE;
++    setup_editor_el_boulderdash_native	= FALSE;
++    setup_editor_el_boulderdash_effects	= FALSE;
++    setup_editor_el_boulderdash_scanned	= FALSE;
++    setup_editor_el_boulderdash_krissz	= FALSE;
++    setup_editor_el_emerald_mine	= FALSE;
++    setup_editor_el_emerald_mine_club	= FALSE;
++    setup_editor_el_more		= FALSE;
++    setup_editor_el_sokoban		= FALSE;
++    setup_editor_el_supaplex		= FALSE;
++    setup_editor_el_diamond_caves	= FALSE;
++    setup_editor_el_dx_boulderdash	= FALSE;
++    setup_editor_el_mirror_magic	= FALSE;
++    setup_editor_el_deflektor		= FALSE;
++    setup_editor_el_chars		= FALSE;
++    setup_editor_el_steel_chars		= FALSE;
++    setup_editor_el_custom		= FALSE;
++    setup_editor_el_dynamic		= FALSE;
++
++    setup_editor_el_user_defined	= TRUE;
++  }
+   else if (level.game_engine_type == GAME_ENGINE_TYPE_BD)
+   {
+     setup_editor_el_players		= FALSE;
+@@ -8761,6 +8789,19 @@ static void ReinitializeElementList(void)
+     initialization_needed = FALSE;
+   }
+ 
++  // a Puzzle Pits level: its squares (the user defined list) unfolded
++  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
++  {
++    for (i = 0; editor_elements_info[i].setup_value != NULL; i++)
++    {
++      int *cascade_element = &(*editor_elements_info[i].headline_list)[0];
++
++      if (editor_elements_info[i].setup_value == &setup_editor_el_user_defined &&
++	  IS_EDITOR_CASCADE(*cascade_element))
++	*cascade_element = EL_CASCADE_ACTIVE(*cascade_element);
++    }
++  }
++
+   checked_free(editor_elements);
+ 
+   // reload optional user defined element list for each invocation of editor
+@@ -18951,6 +18992,23 @@ static void HandleControlButtons(struct GadgetInfo *gi)
+       char *level_filename;
+       boolean new_level;
+ 
++      // a Puzzle Pits level: saved as the game's own level file, its
++      // scripts kept (R'n'D's own level files can't hold it)
++      if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
++      {
++	if (leveldir_current->readonly)
++	{
++	  Request("This level set is read-only! Copy its folder into your own levels folder to change its levels.", REQ_CONFIRM);
++	  break;
++	}
++
++	CopyPlayfield(Tile, level.field);
++	SaveNativeLevel(&level);
++	level.changed = FALSE;
++
++	break;
++      }
++
+       if (leveldir_current->readonly && !PrepareSavingIntoPersonalLevelSet())
+ 	break;
+ 
 diff --git a/src/files.c b/src/files.c
-index 81ab129..6ea2b94 100644
+index 81ab129..6a592cc 100644
 --- a/src/files.c
 +++ b/src/files.c
 @@ -2268,6 +2268,7 @@ filetype_id_list[] =
@@ -95,7 +176,7 @@ index 81ab129..6ea2b94 100644
    // check for typical filename of a Sokoban level package file
    if (strSuffixLower(basename, ".xsb") &&
        strchr(basename, '%') == NULL)
-@@ -8625,6 +8630,81 @@ static void LoadLevelFromFileInfo_MM(struct LevelInfo *level,
+@@ -8625,6 +8630,237 @@ static void LoadLevelFromFileInfo_MM(struct LevelInfo *level,
      level->no_valid_file = TRUE;
  }
  
@@ -111,40 +192,70 @@ index 81ab129..6ea2b94 100644
 +    level->no_valid_file = TRUE;
 +}
 +
-+// the pit in R'n'D's elements, for its preview and the level editor
++// the pit in R'n'D's elements, for its preview and its level editor: the
++// level set's custom elements (its template.level and artwork), one for
++// each ground and what stands on it, and back
++static const struct { int element, under, over; } pits_elements[] =
++{
++#include "game_pits_elements.inc"
++};
++
 +static int map_tile_PITS_to_RND(int under, int over)
 +{
-+  if (over == 100)
-+    return EL_PLAYER_1;
++  int i;
 +
++  // as the editor knows them: a box at home is one; lava cooling, lava; a
++  // plate down, a plate
 +  if (over > 0 && over < 53)
++    over -= (over - 1) % 4;
++  if (under == 59)
++    under = 58;
++  if (under == 92 || under == 96)
++    under = 88;
++
++  if (under == 0 && over == 0)
++    return EL_EMPTY;				// the void
++
++  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
++    if (pits_elements[i].under == under && pits_elements[i].over == over)
++      return pits_elements[i].element;
++
++  // what isn't one: what stands there (on floor or, a wall, on nothing),
++  // else the ground alone
++  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
++    if (over != 0 && (pits_elements[i].under == 53 || pits_elements[i].under == 0) &&
++	pits_elements[i].over == over)
++      return pits_elements[i].element;
++  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
++    if (pits_elements[i].under == under && pits_elements[i].over == 0)
++      return pits_elements[i].element;
++
++  return EL_EMPTY;
++}
++
++static void map_tile_RND_to_PITS(int element, int *under, int *over)
++{
++  int i;
++
++  *under = *over = 0;				// the void (R'n'D's empty space)
++
++  if (IS_PLAYER_ELEMENT(element))
 +  {
-+    switch (over - (over - 1) % 4)
-+    {
-+      case 33: case 41: case 49:	return EL_SOKOBAN_FIELD_FULL;	// each on its target
-+      case 21: case 25: case 29:
-+      case 37: case 45:			return EL_SOKOBAN_OBJECT;
-+      default:				return EL_STEELWALL;
-+    }
++    *under = 53;
++    *over = 100;
++    return;
 +  }
 +
-+  switch (under)
-+  {
-+    case 54: case 55: case 56:		return EL_SOKOBAN_FIELD_EMPTY;
-+    case 60:				return EL_SP_PORT_UP;
-+    case 61:				return EL_SP_PORT_RIGHT;
-+    case 62:				return EL_SP_PORT_DOWN;
-+    case 63:				return EL_SP_PORT_LEFT;
-+    case 64:				return EL_EMERALD_RED;
-+    case 65:				return EL_EMERALD;
-+    case 66:				return EL_EMERALD_PURPLE;
-+    case 67:				return EL_EMERALD_YELLOW;
-+    case 68: case 69: case 70:		return EL_KEY_1 + under - 68;
-+    case 76: case 77: case 78:		return EL_GATE_1 + under - 76;
-+    case 83: case 84: case 88:
-+    case 92: case 96:			return EL_ACID;
-+    default:				return EL_EMPTY;
-+  }
++  for (i = 0; i < ARRAY_SIZE(pits_elements); i++)
++    if (pits_elements[i].element == element)
++    {
++      *under = pits_elements[i].under;
++      *over = pits_elements[i].over;
++      return;
++    }
++
++  if (element != EL_EMPTY)
++    *under = 53;				// anything else: floor
 +}
 +
 +static void CopyNativeLevel_PITS_to_RND(struct LevelInfo *level)
@@ -168,16 +279,151 @@ index 81ab129..6ea2b94 100644
 +  level->use_step_counter = TRUE;
 +  level->rate_time_over_score = TRUE;
 +
++  // the elements' names (and rules) from the level set's template.level
++  level->use_custom_template = TRUE;
++
 +  strncpy(level->name, level_pits->title, MAX_LEVEL_NAME_LEN);
 +  level->name[MAX_LEVEL_NAME_LEN] = '\0';
 +  strncpy(level->name_native, level_pits->title, MAX_LEVEL_NAME_LEN);
 +  level->name_native[MAX_LEVEL_NAME_LEN] = '\0';
 +}
 +
++// the level file's maps (PIT-FORMAT.md): run-length coded, the inner
++// squares in the order under[x][y] has them in memory (x first)
++static int skipRunPITS(unsigned char *data, int size, int pos)
++{
++  int cell = 24;
++
++  while (cell < 505 && pos + 1 < size)
++  {
++    int n = data[pos];
++
++    pos += 2;
++    while (n-- > 0 && cell < PITS_SIZE * PITS_SIZE)
++      if ((++cell + 1) % PITS_SIZE == 0)
++	cell += 2;
++  }
++
++  return pos;
++}
++
++static int writeRunPITS(unsigned char *out, int map[PITS_SIZE][PITS_SIZE])
++{
++  int cells[PITS_SIZE * PITS_SIZE], num_cells = 0, len = 0, cell = 24, i;
++
++  while (cell < 505)
++  {
++    cells[num_cells++] = map[cell / PITS_SIZE][cell % PITS_SIZE];
++    if ((++cell + 1) % PITS_SIZE == 0)
++      cell += 2;
++  }
++
++  for (i = 0; i < num_cells;)
++  {
++    int n = 1;
++
++    while (i + n < num_cells && cells[i + n] == cells[i] && n < 255)
++      n++;
++    out[len++] = n;
++    out[len++] = cells[i];
++    i += n;
++  }
++
++  return len;
++}
++
++// the edited pit as its level file again: its title, password and scripts
++// as they were, the maps new
++static void CopyNativeLevel_RND_to_PITS(struct LevelInfo *level)
++{
++  struct LevelInfo_PITS *level_pits = &native_pits_level;
++  unsigned char *old = level_pits->file, *new;
++  int size = level_pits->file_size, pos, len, x, y;
++  static int old_under[PITS_SIZE][PITS_SIZE], old_over[PITS_SIZE][PITS_SIZE];
++
++  memcpy(old_under, level_pits->under, sizeof(old_under));
++  memcpy(old_over, level_pits->over, sizeof(old_over));
++
++  for (x = 0; x < PITS_SIZE; x++)
++    for (y = 0; y < PITS_SIZE; y++)
++      level_pits->under[x][y] = level_pits->over[x][y] = 0;
++
++  for (x = 0; x < MIN(level->fieldx, PITS_SIZE - 2); x++)
++  {
++    for (y = 0; y < MIN(level->fieldy, PITS_SIZE - 2); y++)
++    {
++      int *under = &level_pits->under[x + 1][y + 1];
++      int *over = &level_pits->over[x + 1][y + 1];
++
++      // a square as it was: exactly as it was (its ground under the player,
++      // a plate down ...)
++      if (level->field[x][y] == map_tile_PITS_to_RND(old_under[x + 1][y + 1],
++						     old_over[x + 1][y + 1]))
++      {
++	*under = old_under[x + 1][y + 1];
++	*over = old_over[x + 1][y + 1];
++      }
++      else
++	map_tile_RND_to_PITS(level->field[x][y], under, over);
++    }
++  }
++
++  if (size < 2)
++    return;
++
++  // the header as it was: the magic word, the password, the title
++  pos = 2;
++  pos += 2 + (((old[pos] << 8) | old[pos + 1]) ^ 22);
++  pos += 2 + (((old[pos] << 8) | old[pos + 1]) ^ 22);
++  if (pos > size)
++    return;
++
++  new = checked_malloc(PITS_MAX_FILE_SIZE);
++  memcpy(new, old, pos);
++  len = pos;
++  len += writeRunPITS(new + len, level_pits->under);
++  len += writeRunPITS(new + len, level_pits->over);
++
++  // the rest (the scripts) as it was
++  pos = skipRunPITS(old, size, skipRunPITS(old, size, pos));
++  if (len + size - pos <= PITS_MAX_FILE_SIZE)
++  {
++    memcpy(new + len, old + pos, size - pos);
++    len += size - pos;
++    memcpy(level_pits->file, new, len);
++    level_pits->file_size = len;
++  }
++
++  checked_free(new);
++}
++
++static boolean SaveNativeLevel_PITS(char *filename)
++{
++  FILE *file = fopen(filename, "wb");
++  boolean success;
++
++  if (file == NULL)
++    return FALSE;
++
++  success = (fwrite(native_pits_level.file, 1, native_pits_level.file_size, file) ==
++	     (size_t)native_pits_level.file_size);
++
++  return (fclose(file) == 0 && success);
++}
++
  void CopyNativeLevel_RND_to_Native(struct LevelInfo *level)
  {
    if (level->game_engine_type == GAME_ENGINE_TYPE_BD)
-@@ -8647,6 +8727,8 @@ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
+@@ -8635,6 +8871,8 @@ void CopyNativeLevel_RND_to_Native(struct LevelInfo *level)
+     CopyNativeLevel_RND_to_SP(level);
+   else if (level->game_engine_type == GAME_ENGINE_TYPE_MM)
+     CopyNativeLevel_RND_to_MM(level);
++  else if (level->game_engine_type == GAME_ENGINE_TYPE_PITS)
++    CopyNativeLevel_RND_to_PITS(level);
+ }
+ 
+ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
+@@ -8647,10 +8885,25 @@ void CopyNativeLevel_Native_to_RND(struct LevelInfo *level)
      CopyNativeLevel_SP_to_RND(level);
    else if (level->game_engine_type == GAME_ENGINE_TYPE_MM)
      CopyNativeLevel_MM_to_RND(level);
@@ -186,7 +432,24 @@ index 81ab129..6ea2b94 100644
  }
  
  void SaveNativeLevel(struct LevelInfo *level)
-@@ -8725,6 +8807,11 @@ static void LoadLevelFromFileInfo(struct LevelInfo *level,
+ {
++  // a Puzzle Pits level: back into its own file
++  if (level->game_engine_type == GAME_ENGINE_TYPE_PITS)
++  {
++    CopyNativeLevel_RND_to_PITS(level);
++
++    if (SaveNativeLevel_PITS(level->file_info.filename))
++      Request("Native level file saved!", REQ_CONFIRM);
++    else
++      Request("Failed to save native level file!", REQ_CONFIRM);
++
++    return;
++  }
++
+   // saving native level files only supported for some game engines
+   if (level->game_engine_type != GAME_ENGINE_TYPE_BD &&
+       level->game_engine_type != GAME_ENGINE_TYPE_SP)
+@@ -8725,6 +8978,11 @@ static void LoadLevelFromFileInfo(struct LevelInfo *level,
        level->game_engine_type = GAME_ENGINE_TYPE_MM;
        break;
  
@@ -496,6 +759,124 @@ index 0000000..a8695e0
 +#include "export_pits.h"
 +
 +#endif	// GAME_PITS_H
+diff --git a/src/game_pits_elements.inc b/src/game_pits_elements.inc
+new file mode 100644
+index 0000000..99752fa
+--- /dev/null
++++ b/src/game_pits_elements.inc
+@@ -0,0 +1,112 @@
++// The Puzzle Pits: a pit's squares as R'n'D's custom elements (the level
++// set's template.level and artwork) and back: { element, ground, object }.
++// Made by tools/rndset.mjs (https://github.com/LaPingvino/The-Puzzle-Pits)
++
++  { 360, 53,   0 },	// floor
++  { 361, 57,   0 },	// marked tile
++  { 362, 58,   0 },	// plate
++  { 363, 54,   0 },	// red target
++  { 364, 55,   0 },	// green target
++  { 365, 56,   0 },	// blue target
++  { 366, 60,   0 },	// arrow up
++  { 367, 61,   0 },	// arrow right
++  { 368, 62,   0 },	// arrow down
++  { 369, 63,   0 },	// arrow left
++  { 370, 71,   0 },	// glass
++  { 371, 81,   0 },	// wood
++  { 372, 82,   0 },	// grass
++  { 373, 79,   0 },	// crate in water
++  { 374, 80,   0 },	// crate in a hole
++  { 375, 83,   0 },	// hole
++  { 376, 84,   0 },	// water
++  { 377, 88,   0 },	// lava
++  { 378, 64,   0 },	// red gem
++  { 379, 65,   0 },	// green gem
++  { 380, 66,   0 },	// blue gem
++  { 381, 67,   0 },	// yellow gem
++  { 382, 68,   0 },	// red key
++  { 383, 69,   0 },	// green key
++  { 384, 70,   0 },	// blue key
++  { 385, 76,   0 },	// red lock
++  { 386, 77,   0 },	// green lock
++  { 387, 78,   0 },	// blue lock
++  { 388, 53, 100 },	// player (on floor)
++  { 389, 53,  29 },	// barrel on floor
++  { 390, 57,  29 },	// barrel on marked tile
++  { 391, 58,  29 },	// barrel on plate
++  { 392, 54,  29 },	// barrel on red target
++  { 393, 55,  29 },	// barrel on green target
++  { 394, 56,  33 },	// barrel on blue target
++  { 395, 60,  29 },	// barrel on arrow up
++  { 396, 61,  29 },	// barrel on arrow right
++  { 397, 62,  29 },	// barrel on arrow down
++  { 398, 63,  29 },	// barrel on arrow left
++  { 399, 71,  29 },	// barrel on glass
++  { 400, 81,  25 },	// barrel on wood
++  { 401, 79,  29 },	// barrel on crate in water
++  { 402, 80,  29 },	// barrel on crate in a hole
++  { 403, 83,  25 },	// barrel on hole
++  { 404, 84,  21 },	// barrel on water
++  { 405, 64,  29 },	// barrel on red gem
++  { 406, 65,  29 },	// barrel on green gem
++  { 407, 66,  29 },	// barrel on blue gem
++  { 408, 67,  29 },	// barrel on yellow gem
++  { 409, 68,  29 },	// barrel on red key
++  { 410, 69,  29 },	// barrel on green key
++  { 411, 70,  29 },	// barrel on blue key
++  { 412, 76,  29 },	// barrel on red lock
++  { 413, 77,  29 },	// barrel on green lock
++  { 414, 78,  29 },	// barrel on blue lock
++  { 423, 53,  37 },	// crate on floor
++  { 424, 57,  37 },	// crate on marked tile
++  { 425, 58,  37 },	// crate on plate
++  { 426, 54,  41 },	// crate on red target
++  { 427, 55,  37 },	// crate on green target
++  { 428, 56,  37 },	// crate on blue target
++  { 429, 60,  37 },	// crate on arrow up
++  { 430, 61,  37 },	// crate on arrow right
++  { 431, 62,  37 },	// crate on arrow down
++  { 432, 63,  37 },	// crate on arrow left
++  { 433, 71,  37 },	// crate on glass
++  { 434, 79,  37 },	// crate on crate in water
++  { 435, 80,  37 },	// crate on crate in a hole
++  { 436, 64,  37 },	// crate on red gem
++  { 437, 65,  37 },	// crate on green gem
++  { 438, 66,  37 },	// crate on blue gem
++  { 439, 67,  37 },	// crate on yellow gem
++  { 440, 68,  37 },	// crate on red key
++  { 441, 69,  37 },	// crate on green key
++  { 442, 70,  37 },	// crate on blue key
++  { 443, 76,  37 },	// crate on red lock
++  { 444, 77,  37 },	// crate on green lock
++  { 445, 78,  37 },	// crate on blue lock
++  { 454, 53,  45 },	// chest on floor
++  { 455, 57,  45 },	// chest on marked tile
++  { 456, 58,  45 },	// chest on plate
++  { 457, 54,  45 },	// chest on red target
++  { 458, 55,  49 },	// chest on green target
++  { 459, 56,  45 },	// chest on blue target
++  { 460, 60,  45 },	// chest on arrow up
++  { 461, 61,  45 },	// chest on arrow right
++  { 462, 62,  45 },	// chest on arrow down
++  { 463, 63,  45 },	// chest on arrow left
++  { 464, 71,  45 },	// chest on glass
++  { 465, 81,  45 },	// chest on wood
++  { 466, 79,  45 },	// chest on crate in water
++  { 467, 80,  45 },	// chest on crate in a hole
++  { 468, 84,  45 },	// chest on water
++  { 469, 64,  45 },	// chest on red gem
++  { 470, 65,  45 },	// chest on green gem
++  { 471, 66,  45 },	// chest on blue gem
++  { 472, 67,  45 },	// chest on yellow gem
++  { 473, 68,  45 },	// chest on red key
++  { 474, 69,  45 },	// chest on green key
++  { 475, 70,  45 },	// chest on blue key
++  { 476, 76,  45 },	// chest on red lock
++  { 477, 77,  45 },	// chest on green lock
++  { 478, 78,  45 },	// chest on blue lock
++  { 516,  0,   1 },	// wall
++  { 547,  0,   5 },	// wall with text
++  { 548,  0,   9 },	// pillar
++  { 549,  0,  13 },	// switch (off)
++  { 550,  0,  17 },	// switch (on)
 diff --git a/src/main.h b/src/main.h
 index 99025b1..6a2fafb 100644
 --- a/src/main.h
