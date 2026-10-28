@@ -1,6 +1,6 @@
-From f8d91be8064e04053276409a55bc27dae05f9d80 Mon Sep 17 00:00:00 2001
+From 10d1f7f21bad964627ad81a5745cc861cf1c9f0f Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 21:15:18 +0000
+Date: Wed, 28 Oct 2026 21:42:14 +0000
 Subject: [PATCH 1/3] The Puzzle Pits engine's place in R'n'D: hooks and
  interface
 
@@ -9,17 +9,18 @@ Claude-Session: https://claude.ai/code/session_01T523s2LnR11HQaMAgNseiX
 ---
  src/Makefile                |  13 +-
  src/editor.c                |  58 ++++++++
+ src/events.c                |   6 +-
  src/files.c                 | 258 ++++++++++++++++++++++++++++++++++++
- src/game.c                  | 113 ++++++++++++++++
+ src/game.c                  | 122 ++++++++++++++++-
  src/game.h                  |   2 +
  src/game_pits/Makefile      |  38 ++++++
- src/game_pits/export_pits.h |  57 ++++++++
+ src/game_pits/export_pits.h |  67 ++++++++++
  src/game_pits/game_pits.h   |  12 ++
  src/game_pits_elements.inc  | 112 ++++++++++++++++
  src/main.h                  |   7 +-
  src/screens.c               |   1 +
  src/tools.c                 |  10 ++
- 12 files changed, 677 insertions(+), 4 deletions(-)
+ 13 files changed, 700 insertions(+), 6 deletions(-)
  create mode 100644 src/game_pits/Makefile
  create mode 100644 src/game_pits/export_pits.h
  create mode 100644 src/game_pits/game_pits.h
@@ -153,6 +154,23 @@ index 8f2b5b9..600e470 100644
        if (leveldir_current->readonly && !PrepareSavingIntoPersonalLevelSet())
  	break;
  
+diff --git a/src/events.c b/src/events.c
+index 5c7bb6d..196bd04 100644
+--- a/src/events.c
++++ b/src/events.c
+@@ -477,7 +477,11 @@ static void SetPlayerMouseAction(int mx, int my, int button)
+ 
+   ClearPlayerMouseAction();
+ 
+-  if (!IN_GFX_FIELD_PLAY(mx, my) || !IN_LEV_FIELD(lx, ly))
++  // (The Puzzle Pits' strip of gems and keys is outside the level)
++  if (!IN_GFX_FIELD_PLAY(mx, my) ||
++      !(IN_LEV_FIELD(lx, ly) ||
++	(level.game_engine_type == GAME_ENGINE_TYPE_PITS &&
++	 IN_PITS_ITEMS(lx, ly))))
+     return;
+ 
+   local_player->mouse_action.lx = lx;
 diff --git a/src/files.c b/src/files.c
 index 81ab129..6a592cc 100644
 --- a/src/files.c
@@ -462,7 +480,7 @@ index 81ab129..6a592cc 100644
        LoadLevelFromFileInfo_DC(level, level_file_info, level_info_only);
        break;
 diff --git a/src/game.c b/src/game.c
-index 4c594a8..4b7d055 100644
+index 4c594a8..1dfae5f 100644
 --- a/src/game.c
 +++ b/src/game.c
 @@ -2415,6 +2415,8 @@ int getPlayerInventorySize(int player_nr)
@@ -569,7 +587,30 @@ index 4c594a8..4b7d055 100644
    game.score_final = (level.game_engine_type == GAME_ENGINE_TYPE_BD ? game_bd.score :
  		      level.game_engine_type == GAME_ENGINE_TYPE_EM ? game_em.lev->score :
  		      level.game_engine_type == GAME_ENGINE_TYPE_MM ? game_mm.score :
-@@ -12539,6 +12587,23 @@ static void CheckLevelSolved(void)
+@@ -5862,7 +5910,9 @@ void GameEnd(void)
+   // increment and load next level (if possible and not configured otherwise)
+   AdvanceToNextLevel();
+ 
+-  if (game.LevelSolved_SaveScore && scores.last_added >= 0 && setup.show_scores_after_game)
++  // (The Puzzle Pits: on to the next level, its scores are in the Hall of Fame)
++  if (game.LevelSolved_SaveScore && scores.last_added >= 0 && setup.show_scores_after_game &&
++      level.game_engine_type != GAME_ENGINE_TYPE_PITS)
+   {
+     SetGameStatus(GAME_MODE_SCORES);
+ 
+@@ -5999,6 +6049,11 @@ void NewHighScore(int level_nr, boolean tape_saved)
+ 
+   SaveScoreTape(level_nr);
+ 
++  // The Puzzle Pits: the scores stay local (the high score server doesn't
++  // know its engine)
++  if (level.game_engine_type == GAME_ENGINE_TYPE_PITS)
++    return;
++
+   if (setup.ask_for_using_api_server)
+   {
+     setup.use_api_server =
+@@ -12539,6 +12594,23 @@ static void CheckLevelSolved(void)
      if (game_sp.game_over)				// game lost
        game.all_players_gone = TRUE;
    }
@@ -593,7 +634,7 @@ index 4c594a8..4b7d055 100644
    else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
    {
      if (game_mm.level_solved &&
-@@ -13087,6 +13152,10 @@ static void GameActionsExt(void)
+@@ -13087,6 +13159,10 @@ static void GameActionsExt(void)
    {
      GameActions_MM_Main();
    }
@@ -604,7 +645,7 @@ index 4c594a8..4b7d055 100644
    else
    {
      GameActions_RND_Main();
-@@ -13183,6 +13252,48 @@ void GameActions_SP_Main(void)
+@@ -13183,6 +13259,48 @@ void GameActions_SP_Main(void)
    }
  }
  
@@ -653,7 +694,7 @@ index 4c594a8..4b7d055 100644
  void GameActions_MM_Main(void)
  {
    AdvanceGfxFrame();
-@@ -17481,6 +17592,8 @@ boolean checkGameFailed(void)
+@@ -17481,6 +17599,8 @@ boolean checkGameFailed(void)
      return (game_sp.game_over && !game_sp.level_solved);
    else if (level.game_engine_type == GAME_ENGINE_TYPE_MM)
      return (game_mm.game_over && !game_mm.level_solved);
@@ -721,10 +762,10 @@ index 0000000..7bfba96
 +endif
 diff --git a/src/game_pits/export_pits.h b/src/game_pits/export_pits.h
 new file mode 100644
-index 0000000..6fd47fa
+index 0000000..d9e17dd
 --- /dev/null
 +++ b/src/game_pits/export_pits.h
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,67 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -743,6 +784,16 @@ index 0000000..6fd47fa
 +#define PITS_CARRY_NONE			0	// none (a level started on its own)
 +#define PITS_CARRY_NEXT			1	// those held when a level was last won
 +#define PITS_CARRY_RESTART		2	// those this level started with last time
++
++// the strip of gems and keys over the pit (red, green, blue, yellow gem; red,
++// green, blue key): a click on it comes as the square PITS_ITEMS_LX,
++// PITS_ITEMS_LY + the item (PITS_NUM_ITEMS: between them), outside the level
++#define PITS_NUM_ITEMS			7
++#define PITS_ITEMS_LX			100
++#define PITS_ITEMS_LY			100
++#define IN_PITS_ITEMS(x, y)		((x) == PITS_ITEMS_LX &&		\
++					 (y) >= PITS_ITEMS_LY &&		\
++					 (y) <= PITS_ITEMS_LY + PITS_NUM_ITEMS)
 +
 +struct GameInfo_PITS
 +{
