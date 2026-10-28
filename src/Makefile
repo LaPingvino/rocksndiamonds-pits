@@ -327,7 +327,8 @@ $(GAME_SP):
 
 game_pits_dir:
 	@$(MAKE) -C $(GAME_PITS_DIR)
-$(GAME_PITS):
+# rebuilt (and the program relinked) when the engine's sources change
+$(GAME_PITS): $(wildcard $(GAME_PITS_DIR)/*.c $(GAME_PITS_DIR)/*.h)
 	@$(MAKE) -C $(GAME_PITS_DIR)
 
 game_mm_dir:
