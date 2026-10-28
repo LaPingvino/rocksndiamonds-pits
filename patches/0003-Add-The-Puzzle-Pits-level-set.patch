@@ -1,6 +1,6 @@
-From 0835b6eb3b9f682ce501caeb66abed343a469894 Mon Sep 17 00:00:00 2001
+From aeb66e22871ff3af943f3877c341c6bacfe694ae Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
-Date: Wed, 28 Oct 2026 19:20:07 +0000
+Date: Wed, 28 Oct 2026 19:28:03 +0000
 Subject: [PATCH 3/3] Add The Puzzle Pits' level set
 
 Abe Pralle's 40 levels, with the game's pictures and sounds, as the game
@@ -63,12 +63,12 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  levels/The_Puzzle_Pits/TILES2.DAT             | Bin 0 -> 55490 bytes
  levels/The_Puzzle_Pits/TILES3.DAT             | Bin 0 -> 49748 bytes
  levels/The_Puzzle_Pits/WATER.WAV              | Bin 0 -> 6110 bytes
- .../graphics/graphicsinfo.conf                |  25 +++
+ .../graphics/graphicsinfo.conf                |  33 +++
  .../graphics/pits_font_shadow.png             | Bin 0 -> 3241 bytes
  .../graphics/pits_font_stone.png              | Bin 0 -> 3916 bytes
  .../The_Puzzle_Pits/graphics/pits_stone.png   | Bin 0 -> 161 bytes
  levels/The_Puzzle_Pits/levelinfo.conf         |   8 +
- 59 files changed, 240 insertions(+)
+ 59 files changed, 248 insertions(+)
  create mode 100644 levels/The_Puzzle_Pits/CRACK.WAV
  create mode 100644 levels/The_Puzzle_Pits/GLASS.WAV
  create mode 100644 levels/The_Puzzle_Pits/LAVA.WAV
@@ -3029,10 +3029,10 @@ HcmV?d00001
 
 diff --git a/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf b/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
 new file mode 100644
-index 0000000..c2b4c48
+index 0000000..db1036a
 --- /dev/null
 +++ b/levels/The_Puzzle_Pits/graphics/graphicsinfo.conf
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,33 @@
 +# The Puzzle Pits' own letters (made by tools/pitsfont.mjs from PLASMA1.FNT)
 +
 +# the scripts' text: engraved, on the game's grey stone
@@ -3058,6 +3058,14 @@ index 0000000..c2b4c48
 +font.input_1.height:                    18
 +font.input_1.frames:                    95
 +font.input_1.frames_per_line:           16
++
++# the main menu's (the player's name) as R'n'D has it: a level set's
++# font.input_1 would otherwise be it too
++font.input_1.MAIN:                      RocksFontBig.png
++font.input_1.MAIN.x:                    0
++font.input_1.MAIN.y:                    0
++font.input_1.MAIN.width:                32
++font.input_1.MAIN.height:               32
 diff --git a/levels/The_Puzzle_Pits/graphics/pits_font_shadow.png b/levels/The_Puzzle_Pits/graphics/pits_font_shadow.png
 new file mode 100644
 index 0000000000000000000000000000000000000000..cd4d53740697a08b2e79995cc01d6288d7068cd7
