@@ -449,9 +449,10 @@ static void getRoomGeometry(int *ox, int *oy, int *scale)
   *oy = (SYSIZE - PITS_ROOM_ROWS * square) / 2 + square / 2;
 }
 
-// the strip of gems and keys: a column along the left edge, darker, with
-// the gems and keys in its middle, as big as the pit's squares
-static void getItemsGeometry(int *width, int *size, int *gap)
+// the strip of gems and keys: a band along the bottom edge, darker, with
+// the gems and keys in its middle, as big as the pit's squares (the view
+// keeps the player in the middle, at least three squares above it)
+static void getItemsGeometry(int *height, int *size, int *gap)
 {
   int vx0, vy0, ox, oy, cols, rows, scale;
 
@@ -459,34 +460,39 @@ static void getItemsGeometry(int *width, int *size, int *gap)
 
   *size = PITS_SQUARE * scale;
   *gap = 3 * scale;
-  *width = *size + 2 * *gap;
+  *height = *size + 2 * *gap;
 }
 
 // where an item is: the gems, then a little apart the keys
-static int getItemY(int item, int size, int gap)
+static int getItemX(int item, int size, int gap)
 {
-  int height = PITS_NUM_ITEMS * (size + gap) + gap;
+  int width = PITS_NUM_ITEMS * size + (PITS_NUM_ITEMS - 1) * gap + 4 * gap;
 
-  return ((SYSIZE - height) / 2 + item * (size + gap) +
-	  (item >= 4 ? 2 * gap : 0));
+  return ((SXSIZE - width) / 2 + item * (size + gap) +
+	  (item >= 4 ? 4 * gap : 0));
 }
 
-// the item at a place on the screen (in the playfield): -1 off the strip,
-// PITS_NUM_ITEMS on it between the items
-static int getItemFromScreen(int x, int y)
+static boolean isOnItems(int y)
 {
-  int width, size, gap, i;
+  int height, size, gap;
 
-  getItemsGeometry(&width, &size, &gap);
+  getItemsGeometry(&height, &size, &gap);
 
-  if (x < SX || x >= SX + width)
-    return -1;
+  return (y >= SY + SYSIZE - height && y < SY + SYSIZE);
+}
+
+// the item at a place on the band: PITS_NUM_ITEMS between the items
+static int getItemFromScreenX(int x)
+{
+  int height, size, gap, i;
+
+  getItemsGeometry(&height, &size, &gap);
 
   for (i = 0; i < PITS_NUM_ITEMS; i++)
   {
-    int item_y = SY + getItemY(i, size, gap);
+    int item_x = SX + getItemX(i, size, gap);
 
-    if (y >= item_y && y < item_y + size)
+    if (x >= item_x && x < item_x + size)
       return i;
   }
 
@@ -495,13 +501,13 @@ static int getItemFromScreen(int x, int y)
 
 static void DrawItems(void)
 {
-  int width, size, gap, i, x, y;
+  int height, size, gap, i, x, y;
 
-  getItemsGeometry(&width, &size, &gap);
+  getItemsGeometry(&height, &size, &gap);
 
-  // the column, the pit darker under it
-  for (y = 0; y < draw_height; y++)
-    for (x = 0; x < width && x < draw_width; x++)
+  // the band, the pit darker under it
+  for (y = MAX(0, draw_height - height); y < draw_height; y++)
+    for (x = 0; x < draw_width; x++)
       draw_pixels[y * draw_pitch + x] =
 	0xff000000 | ((draw_pixels[y * draw_pitch + x] >> 2) & 0x3f3f3f);
 
@@ -515,8 +521,8 @@ static void DrawItems(void)
 			      (i == PITS_YELLOW && pits_view.show_all)));
     int shape = (gem ? PITS_U_GEM_RED + i : PITS_U_KEY_RED + i - 4);
 
-    x = gap;
-    y = getItemY(i, size, gap);
+    x = getItemX(i, size, gap);
+    y = SYSIZE - height + gap;
 
     draw_dimmed = (count <= 0);
     DrawShape(shape, x, y, FALSE);
@@ -533,9 +539,9 @@ static void DrawItemCounts(Bitmap *target_bitmap)
   int font_nr = FONT_INPUT_1;
   int font_width = getFontWidth(font_nr);
   int font_height = getFontHeight(font_nr);
-  int width, size, gap, i;
+  int height, size, gap, i;
 
-  getItemsGeometry(&width, &size, &gap);
+  getItemsGeometry(&height, &size, &gap);
 
   for (i = 0; i < PITS_NUM_ITEMS; i++)
   {
@@ -548,8 +554,8 @@ static void DrawItemCounts(Bitmap *target_bitmap)
     sprintf(text, "%d", MIN(count, 99));
 
     DrawTextExt(target_bitmap,
-		SX + gap + size - strlen(text) * font_width,
-		SY + getItemY(i, size, gap) + size - font_height,
+		SX + getItemX(i, size, gap) + size - strlen(text) * font_width,
+		SY + SYSIZE - gap - font_height,
 		text, font_nr, BLIT_MASKED);
   }
 }
@@ -759,7 +765,8 @@ void BlitScreenToBitmap_PITS(Bitmap *target_bitmap)
 
 static int getLevelFromScreen(int screen_pos, boolean horizontal)
 {
-  // R'n'D asks for x, then for y: x is kept for the strip of gems and keys
+  // R'n'D asks for x, then for y: the band is known by y, so x looks at
+  // where the mouse is, and y uses the x it was just asked for
   static int last_screen_x = -1;
   int vx0, vy0, ox, oy, cols, rows, scale;
   int square, pos;
@@ -770,20 +777,11 @@ static int getLevelFromScreen(int screen_pos, boolean horizontal)
   // the strip of gems and keys: outside the level (see export_pits.h)
   if (pits_prompt.mode == PITS_PROMPT_NONE)
   {
-    int item = getItemFromScreen(last_screen_x, screen_pos);
+    if (horizontal && isOnItems(gfx.mouse_y))
+      return PITS_ITEMS_LX;
 
-    if (item != -1)
-      return (horizontal ? PITS_ITEMS_LX : PITS_ITEMS_LY + item);
-  }
-
-  // the typing room: its keys' places
-  if (pits_prompt.mode == PITS_PROMPT_INPUT)
-  {
-    getRoomGeometry(&ox, &oy, &scale);
-    square = PITS_SQUARE * scale;
-    pos = screen_pos - (horizontal ? SX + ox : SY + oy);
-
-    return (pos < 0 ? -1 : pos / square);
+    if (!horizontal && isOnItems(screen_pos))
+      return PITS_ITEMS_LY + getItemFromScreenX(last_screen_x);
   }
 
   getShownGeometry(&vx0, &vy0, &ox, &oy, &cols, &rows, &scale);

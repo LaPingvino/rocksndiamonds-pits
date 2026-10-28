@@ -438,7 +438,7 @@ static void ShowControls(void)
 	  (drop_key ? ")" : ""));
   AddWrapped(text, line);
 
-  AddWrapped(text, "Or click the gems and keys on the left.");
+  AddWrapped(text, "Or click the gems and keys at the bottom.");
   AddWrapped(text, "Left mouse button: step towards a square. Right button: "
 	     "walk there.");
 
