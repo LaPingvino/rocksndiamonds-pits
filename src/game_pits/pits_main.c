@@ -412,14 +412,15 @@ static void AddWrapped(char *text, char *line)
   strcat(text, "\n");
 }
 
-static void ShowControls(void)
+// the controls: before the first level of a run, and again when asked
+static void ShowControls(boolean again)
 {
   char *snap_key = getKeyName_PITS(TRUE);
   char *drop_key = getKeyName_PITS(FALSE);
   char text[TEXT_LINES * (TEXT_COLUMNS + 2) + 1] = "Controls\n\n";
   char line[TEXT_COLUMNS * 4];
 
-  if (controls_shown)
+  if (controls_shown && !again)
     return;
 
   controls_shown = TRUE;
@@ -434,6 +435,11 @@ static void ShowControls(void)
 	     "yellow gem (again: put it away).");
 
   sprintf(line, "Drop%s%s%s + Left/Up/Right: use the red, green, blue key.",
+	  (drop_key ? " (" : ""), (drop_key ? drop_key : ""),
+	  (drop_key ? ")" : ""));
+  AddWrapped(text, line);
+
+  sprintf(line, "Drop%s%s%s alone, or the \"?\": this help again.",
 	  (drop_key ? " (" : ""), (drop_key ? drop_key : ""),
 	  (drop_key ? ")" : ""));
   AddWrapped(text, line);
@@ -1066,7 +1072,7 @@ static void PlayFrame(int action, struct MouseActionInfo mouse)
     pits.started = TRUE;
 
     // not one of the level's pages: a frame played again doesn't count it
-    ShowControls();
+    ShowControls(FALSE);
 
     quiet_text = pits.quiet_intro;
     StartLevel_PITS();
@@ -1145,6 +1151,23 @@ void GameActions_PITS(byte action[MAX_PLAYERS], struct MouseActionInfo mouse)
 {
   struct MouseActionInfo no_mouse = { 0, 0, 0, 0 };
   int player_action = action[0];
+  static boolean help_held = FALSE;
+  boolean help;
+
+  // drop alone, or the "?" on the strip: the controls again, as a script's
+  // text is shown (no turn, nothing in the game changes); snap held too
+  // doesn't matter (SDL may report Left Ctrl along with Right Ctrl)
+  help = (pits_prompt.mode == PITS_PROMPT_NONE &&
+	  ((player_action & (MV_ANY_DIRECTION | KEY_BUTTON_DROP)) ==
+	   KEY_BUTTON_DROP ||
+	   (mouse.lx == PITS_ITEMS_LX &&
+	    mouse.ly == PITS_ITEMS_LY + PITS_ITEM_HELP &&
+	    mouse.button == MB_LEFTBUTTON)));
+
+  if (help && !help_held)
+    ShowControls(TRUE);
+
+  help_held = help;
 
   // the strip of gems and keys: a click there is its key, and not a square
   if (mouse.lx == PITS_ITEMS_LX && pits_prompt.mode == PITS_PROMPT_NONE)

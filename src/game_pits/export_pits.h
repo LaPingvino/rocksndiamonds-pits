@@ -18,14 +18,16 @@
 #define PITS_CARRY_RESTART		2	// those this level started with last time
 
 // the strip of gems and keys over the pit (red, green, blue, yellow gem; red,
-// green, blue key): a click on it comes as the square PITS_ITEMS_LX,
-// PITS_ITEMS_LY + the item (PITS_NUM_ITEMS: between them), outside the level
+// green, blue key; then "?", the controls): a click on it comes as the square
+// PITS_ITEMS_LX, PITS_ITEMS_LY + the item (PITS_NUM_ITEMS: between them;
+// PITS_ITEM_HELP: the "?"), outside the level
 #define PITS_NUM_ITEMS			7
+#define PITS_ITEM_HELP			(PITS_NUM_ITEMS + 1)
 #define PITS_ITEMS_LX			100
 #define PITS_ITEMS_LY			100
 #define IN_PITS_ITEMS(x, y)		((x) == PITS_ITEMS_LX &&		\
 					 (y) >= PITS_ITEMS_LY &&		\
-					 (y) <= PITS_ITEMS_LY + PITS_NUM_ITEMS)
+					 (y) <= PITS_ITEMS_LY + PITS_ITEM_HELP)
 
 struct GameInfo_PITS
 {

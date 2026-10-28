@@ -463,13 +463,15 @@ static void getItemsGeometry(int *height, int *size, int *gap)
   *height = *size + 2 * *gap;
 }
 
-// where an item is: the gems, then a little apart the keys
+// where an item is: the gems, then a little apart the keys, then the "?"
+// (as item PITS_NUM_ITEMS)
 static int getItemX(int item, int size, int gap)
 {
-  int width = PITS_NUM_ITEMS * size + (PITS_NUM_ITEMS - 1) * gap + 4 * gap;
+  int slots = PITS_NUM_ITEMS + 1;
+  int width = slots * size + (slots - 1) * gap + 8 * gap;
 
   return ((SXSIZE - width) / 2 + item * (size + gap) +
-	  (item >= 4 ? 4 * gap : 0));
+	  (item >= 4 ? 4 * gap : 0) + (item >= PITS_NUM_ITEMS ? 4 * gap : 0));
 }
 
 static boolean isOnItems(int y)
@@ -481,19 +483,20 @@ static boolean isOnItems(int y)
   return (y >= SY + SYSIZE - height && y < SY + SYSIZE);
 }
 
-// the item at a place on the band: PITS_NUM_ITEMS between the items
+// the item at a place on the band: PITS_NUM_ITEMS between the items,
+// PITS_ITEM_HELP the "?"
 static int getItemFromScreenX(int x)
 {
   int height, size, gap, i;
 
   getItemsGeometry(&height, &size, &gap);
 
-  for (i = 0; i < PITS_NUM_ITEMS; i++)
+  for (i = 0; i <= PITS_NUM_ITEMS; i++)
   {
     int item_x = SX + getItemX(i, size, gap);
 
     if (x >= item_x && x < item_x + size)
-      return i;
+      return (i < PITS_NUM_ITEMS ? i : PITS_ITEM_HELP);
   }
 
   return PITS_NUM_ITEMS;
@@ -531,6 +534,10 @@ static void DrawItems(void)
     if (in_use)
       DrawFrame(x - gap, y - gap, size + 2 * gap, colors[1]);	// white
   }
+
+  // the "?": a floor square, its sign drawn with the counts
+  DrawShape(PITS_U_FLOOR, getItemX(PITS_NUM_ITEMS, size, gap),
+	    SYSIZE - height + gap, FALSE);
 }
 
 // how many of each are held, on the strip (the yellow gem: held or not)
@@ -558,6 +565,12 @@ static void DrawItemCounts(Bitmap *target_bitmap)
 		SY + SYSIZE - gap - font_height,
 		text, font_nr, BLIT_MASKED);
   }
+
+  // the "?", in the middle of its square
+  DrawTextExt(target_bitmap,
+	      SX + getItemX(PITS_NUM_ITEMS, size, gap) + (size - font_width) / 2,
+	      SY + SYSIZE - height + gap + (size - font_height) / 2,
+	      "?", font_nr, BLIT_MASKED);
 }
 
 static void getShownGeometry(int *vx0, int *vy0, int *ox, int *oy,
