@@ -107,9 +107,32 @@ static int Clamp(int value, int min, int max)
   return (value < min ? min : value > max ? max : value);
 }
 
+// each gem is in use on its own; gem_in_use is the one put in use last
+static void SetGemInUse(int gem, boolean in_use)
+{
+  int i;
+
+  pits.gem_on[gem] = in_use;
+
+  if (in_use)
+  {
+    pits.gem_in_use = gem;
+    return;
+  }
+
+  if (pits.gem_in_use == gem)
+  {
+    pits.gem_in_use = PITS_NO_GEM;
+
+    for (i = PITS_RED; i <= PITS_BLUE; i++)
+      if (pits.gem_on[i])
+	pits.gem_in_use = i;
+  }
+}
+
 static boolean IsGhost(void)
 {
-  return (pits.gem_in_use == PITS_GREEN &&
+  return (pits.gem_on[PITS_GREEN] &&
 	  pits.green_stage == PITS_GHOST_STAGE);
 }
 
@@ -443,6 +466,8 @@ void InitLevel_PITS(void)
   for (i = 0; i < 3; i++)
     pits.keys[i] = 0;
 
+  for (i = 0; i < 3; i++)
+    pits.gem_on[i] = FALSE;
   pits.gem_in_use = PITS_NO_GEM;
   pits.green_stage = 0;
 
@@ -604,9 +629,9 @@ void TurnChecks_PITS(void)
   if (pits.script_master >= 0)
     RunScript(pits.script_master, TRUE, 0, 0);
 
-  if (pits.gem_in_use >= PITS_RED && pits.gem_in_use <= PITS_BLUE &&
-      pits.script_gem[pits.gem_in_use] >= 0)
-    RunScript(pits.script_gem[pits.gem_in_use], TRUE, 0, 0);
+  for (i = PITS_RED; i <= PITS_BLUE; i++)
+    if (pits.gem_on[i] && pits.script_gem[i] >= 0)
+      RunScript(pits.script_gem[i], TRUE, 0, 0);
 
   // 4: arrows and glass
   MoveByArrowsAndGlass();
@@ -694,14 +719,15 @@ void TurnChecks_PITS(void)
 // the red and blue gems act on the square the player leaves
 static void GemsActOnSquareLeft(int x, int y, int dir)
 {
-  if (pits.gem_in_use == PITS_RED && pits.script_gem[PITS_RED] < 0)
+  if (pits.gem_on[PITS_RED] && pits.script_gem[PITS_RED] < 0)
   {
     int under = pits.under[x][y];
 
     if (under == PITS_U_FLOOR || PITS_IS_ARROW(under))
       SetUnder(x, y, PITS_U_ARROW_UP + dir);
   }
-  else if (pits.gem_in_use == PITS_BLUE && pits.script_gem[PITS_BLUE] < 0)
+
+  if (pits.gem_on[PITS_BLUE] && pits.script_gem[PITS_BLUE] < 0)
   {
     int bx = x - dir_dx[dir];
     int by = y - dir_dy[dir];
@@ -721,7 +747,7 @@ static void GemsActOnSquareLeft(int x, int y, int dir)
     }
 
     pits.gems[PITS_BLUE]--;
-    pits.gem_in_use = PITS_NO_GEM;
+    SetGemInUse(PITS_BLUE, FALSE);
   }
 }
 
@@ -981,7 +1007,7 @@ boolean FindWay_PITS(int tx, int ty)
 
 static void PutGemAway(int gem)
 {
-  if (pits.gem_in_use != gem)
+  if (!pits.gem_on[gem])
     return;
 
   if (gem == PITS_GREEN)
@@ -993,7 +1019,7 @@ static void PutGemAway(int gem)
 	return;
 
       pits.gems[PITS_GREEN]--;
-      pits.gem_in_use = PITS_NO_GEM;
+      SetGemInUse(PITS_GREEN, FALSE);
       pits.green_stage = 0;
 
       RunScript(pits.script_gem[PITS_GREEN], FALSE, 0, 0);
@@ -1007,7 +1033,7 @@ static void PutGemAway(int gem)
   }
 
   pits.gems[gem]--;
-  pits.gem_in_use = PITS_NO_GEM;
+  SetGemInUse(gem, FALSE);
 
   if (pits.script_gem[gem] >= 0)
     RunScript(pits.script_gem[gem], FALSE, 0, 0);
@@ -1054,7 +1080,7 @@ void FinishGhost_PITS(void)
   TurnChecks_PITS();
 
   pits.gems[PITS_GREEN]--;
-  pits.gem_in_use = PITS_NO_GEM;
+  SetGemInUse(PITS_GREEN, FALSE);
   pits.green_stage = 0;
 }
 
@@ -1063,17 +1089,17 @@ void UseGem_PITS(int gem)
   if (gem == PITS_YELLOW)
     return;				// it only shows the whole pit
 
-  if (pits.gem_in_use == gem)
+  if (pits.gem_on[gem])
   {
     PutGemAway(gem);
 
     return;
   }
 
-  if (pits.gem_in_use != PITS_NO_GEM || pits.gems[gem] <= 0)
+  if (pits.gems[gem] <= 0)
     return;
 
-  pits.gem_in_use = gem;
+  SetGemInUse(gem, TRUE);
   pits.pushing = FALSE;
   PlaySound_PITS(PITS_SND_MAGIC);
 
@@ -1135,7 +1161,7 @@ int getPlayerShape_PITS(void)
     return 228 + (pits.change_stage - 2) * 4;
 
   // changing to a ghost, or a ghost (stage 7)
-  if (pits.gem_in_use == PITS_GREEN && pits.green_stage >= 2)
+  if (pits.gem_on[PITS_GREEN] && pits.green_stage >= 2)
     return 228 + (pits.green_stage - 2) * 4;
 
   if (pits.gem_in_use != PITS_NO_GEM)
@@ -1253,13 +1279,13 @@ static int GetRef(struct ValueRef *ref)
       return pits.over[x][y];
 
     case VAL_REDGEMON:
-      return (pits.gem_in_use == PITS_RED ? 1 : 0);
+      return (pits.gem_on[PITS_RED] ? 1 : 0);
 
     case VAL_GREENGEMON:
-      return (pits.gem_in_use == PITS_GREEN ? pits.green_stage : 0);
+      return (pits.gem_on[PITS_GREEN] ? pits.green_stage : 0);
 
     case VAL_BLUEGEMON:
-      return (pits.gem_in_use == PITS_BLUE ? 1 : 0);
+      return (pits.gem_on[PITS_BLUE] ? 1 : 0);
 
     default:
       return 0;

@@ -507,6 +507,8 @@ void SnapshotView_PITS(void)
     pits_view.gems[x] = pits.gems[x];
   for (x = 0; x < 3; x++)
     pits_view.keys[x] = pits.keys[x];
+  for (x = 0; x < 3; x++)
+    pits_view.gem_on[x] = pits.gem_on[x];
   pits_view.gem_in_use = pits.gem_in_use;
 
   if (IsGhost_PITS())
@@ -532,6 +534,9 @@ void RememberCarry_PITS(void)
 
   for (i = 0; i < 4; i++)
     carry_won.gems[i] = pits.gems[i];
+  for (i = 0; i < 3; i++)
+    if (pits.gem_on[i] && carry_won.gems[i] > 0)
+      carry_won.gems[i]--;		// a gem still in use is used up
   for (i = 0; i < 3; i++)
     carry_won.keys[i] = pits.keys[i];
 }
@@ -709,7 +714,7 @@ static void HandleChange(void)
 		     PITS_SOUTH * 4);
       pits.change_turns--;
     }
-    else if (pits.gem_in_use != PITS_GREEN)
+    else if (!pits.gem_on[PITS_GREEN])
     {
       pits.change_dir = 0;
     }

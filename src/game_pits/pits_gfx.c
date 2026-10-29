@@ -520,7 +520,7 @@ static void DrawItems(void)
   {
     boolean gem = (i < 4);
     int count = (gem ? pits_view.gems[i] : pits_view.keys[i - 4]);
-    boolean in_use = (gem && (pits_view.gem_in_use == i ||
+    boolean in_use = (gem && ((i < 3 && pits_view.gem_on[i]) ||
 			      (i == PITS_YELLOW && pits_view.show_all)));
     int shape = (gem ? PITS_U_GEM_RED + i : PITS_U_KEY_RED + i - 4);
 

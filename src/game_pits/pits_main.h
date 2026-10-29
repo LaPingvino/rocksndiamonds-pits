@@ -178,7 +178,8 @@ struct PitsInfo
   int moves;
   int gems[4];				// red, green, blue; yellow: 0 or 1
   int keys[3];
-  int gem_in_use;
+  boolean gem_on[3];			// red, green, blue: each in use on its own
+  int gem_in_use;			// the one put in use last, or PITS_NO_GEM
   int green_stage;			// 1 to 7 while the green gem is in use
   int green_x, green_y;			// where the player became a ghost
 
@@ -294,6 +295,7 @@ struct PitsViewInfo
 
   int gems[4];				// for the strip of gems and keys
   int keys[3];
+  boolean gem_on[3];
   int gem_in_use;
 };
 
