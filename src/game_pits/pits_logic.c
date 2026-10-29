@@ -737,10 +737,10 @@ static void GemsActOnSquareLeft(int x, int y, int dir)
       pits.over[x][y] = pits.over[bx][by];
       pits.over[bx][by] = PITS_O_NOTHING;
 
-      // not a way that glass knows: a pulled box doesn't slide
+      // not a way that glass knows: a pulled box doesn't slide; it is not marked
+      // as arrived, so an arrow or glass already here carries it on this turn
       pits.last_pushed[x][y] = 4 + dir;
       pits.last_pushed[bx][by] = PITS_NO_DIR;
-      pits.arrived[x][y] = TRUE;
 
       ApplyTileRules(bx, by);
       ApplyTileRules(x, y);
@@ -1060,7 +1060,6 @@ void FinishGhost_PITS(void)
   {
     pits.over[pits.green_x][pits.green_y] = over;
     pits.over[x][y] = PITS_O_NOTHING;
-    pits.arrived[pits.green_x][pits.green_y] = TRUE;
 
     ApplyTileRules(x, y);
     ApplyTileRules(pits.green_x, pits.green_y);
