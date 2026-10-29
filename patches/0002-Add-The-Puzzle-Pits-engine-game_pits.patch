@@ -1,4 +1,4 @@
-From 02847a41e0fc8ed27ad2e95764a4ae291f94c6e5 Mon Sep 17 00:00:00 2001
+From 3b2ca30e983f26c77c74626f76aacfb9076cbafe Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
 Date: Wed, 28 Oct 2026 21:59:12 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
@@ -32,10 +32,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  src/game_pits/Makefile     |    3 +
  src/game_pits/pits_gfx.c   |  898 ++++++++++++++++++
- src/game_pits/pits_logic.c | 1779 ++++++++++++++++++++++++++++++++++++
+ src/game_pits/pits_logic.c | 1780 ++++++++++++++++++++++++++++++++++++
  src/game_pits/pits_main.c  | 1211 ++++++++++++++++++++++++
  src/game_pits/pits_main.h  |  350 +++++++
- 5 files changed, 4241 insertions(+)
+ 5 files changed, 4242 insertions(+)
  create mode 100644 src/game_pits/pits_gfx.c
  create mode 100644 src/game_pits/pits_logic.c
  create mode 100644 src/game_pits/pits_main.c
@@ -961,10 +961,10 @@ index 0000000..01d4949
 +}
 diff --git a/src/game_pits/pits_logic.c b/src/game_pits/pits_logic.c
 new file mode 100644
-index 0000000..65447ff
+index 0000000..cd46ac6
 --- /dev/null
 +++ b/src/game_pits/pits_logic.c
-@@ -0,0 +1,1779 @@
+@@ -0,0 +1,1780 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -1738,6 +1738,7 @@ index 0000000..65447ff
 +  int cy = by + dir_dy[dir];
 +  int box = pits.over[bx][by];
 +  boolean moved = FALSE;
++  boolean walkable_before = IsWalkable(pits.under[bx][by]);
 +
 +  if (!pits.pushing || pits.push_dir != dir)
 +  {
@@ -1784,7 +1785,7 @@ index 0000000..65447ff
 +
 +  pits.moves++;
 +
-+  if (pits.over[bx][by] == PITS_O_NOTHING && IsWalkable(pits.under[bx][by]))
++  if (pits.over[bx][by] == PITS_O_NOTHING && walkable_before)
 +    StepTo(bx, by, dir);
 +
 +  TurnChecks_PITS();
