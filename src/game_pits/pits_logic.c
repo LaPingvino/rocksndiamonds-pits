@@ -771,6 +771,7 @@ static void Push(int bx, int by, int dir)
   int cy = by + dir_dy[dir];
   int box = pits.over[bx][by];
   boolean moved = FALSE;
+  boolean walkable_before = IsWalkable(pits.under[bx][by]);
 
   if (!pits.pushing || pits.push_dir != dir)
   {
@@ -817,7 +818,7 @@ static void Push(int bx, int by, int dir)
 
   pits.moves++;
 
-  if (pits.over[bx][by] == PITS_O_NOTHING && IsWalkable(pits.under[bx][by]))
+  if (pits.over[bx][by] == PITS_O_NOTHING && walkable_before)
     StepTo(bx, by, dir);
 
   TurnChecks_PITS();
