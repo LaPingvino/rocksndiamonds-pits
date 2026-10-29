@@ -1,4 +1,4 @@
-From af37523f9ced509770d035d3dadc1c3664a36645 Mon Sep 17 00:00:00 2001
+From f435d0dd4188e167f22631b7f3d54779f130a7ab Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
 Date: Wed, 28 Oct 2026 21:59:12 +0000
 Subject: [PATCH 3/3] Add The Puzzle Pits' level set
@@ -23,7 +23,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
  levels/The_Puzzle_Pits/LEVEL09.PIT            |  Bin 0 -> 956 bytes
  levels/The_Puzzle_Pits/LEVEL10.PIT            |  Bin 0 -> 1020 bytes
  levels/The_Puzzle_Pits/LEVEL11.PIT            |  Bin 0 -> 714 bytes
- levels/The_Puzzle_Pits/LEVEL12.PIT            |  Bin 0 -> 852 bytes
+ levels/The_Puzzle_Pits/LEVEL12.PIT            |  Bin 0 -> 820 bytes
  levels/The_Puzzle_Pits/LEVEL13.PIT            |  Bin 0 -> 1399 bytes
  levels/The_Puzzle_Pits/LEVEL14.PIT            |  Bin 0 -> 896 bytes
  levels/The_Puzzle_Pits/LEVEL15.PIT            |  Bin 0 -> 1156 bytes
@@ -795,22 +795,21 @@ HcmV?d00001
 
 diff --git a/levels/The_Puzzle_Pits/LEVEL12.PIT b/levels/The_Puzzle_Pits/LEVEL12.PIT
 new file mode 100644
-index 0000000000000000000000000000000000000000..55623f2b5d896288fd10726a57fd40240d4d12fc
+index 0000000000000000000000000000000000000000..933c6ca31ebbae82387a61dfc9f1df5ce7468fe0
 GIT binary patch
-literal 852
+literal 820
 zcmd;>${@$g!_8nJ&%?#QD#^(0Vz0v`#m#LJ<YyvbFY6a3#vp9U1jdY}f+38iObm>s
 zj24U`1Ta_~L_J79OfQIy4>OuFG6;h8axgI3b2D(-G1_z5FhOZC1~EoPRSpISW@2Py
 zV3Z|{nHYr`aAQse#uQGh@+^$(NH%dWGOBVj3ac_P3ag4SGBExBzw18(BZDvtyOfw1
-zV;w^y0|SEq1Ba}Dj6Fje0|VnPm)zv6%oRbEiM5%lohuWQ^4mI=yX2)8I^-v3G#5K_
+zV<bZ(0|SEq1Ba}Dj6Fje0|VnNm)zv6%oRbEiM5%lohuWQ^4mI=yX2)8I^-v3G#5K_
 zCK_frI!0SC3ObrGi7+uZ>N5#5v-0YSIPx$$8gno(aY*F)3Uh-+WCcW&*nIsMC6zb?
-zrM&#}(;f4wE%YQDIk-jiIUS{VSQ716c*R&ueT^77L`+%u7+kXhauTys#S?P`d<;1C
+zrM&#}(;f4wE%YQDIk-jiIUS{VSQ716c*R&ueT^77L`+%u7+kXhauTys%@cDBd<;1C
 z<XHT~SX6!4xH*LqrC4Mb9S!AKqy!`qnOXP+9Flz{7zG_wM46aaIdq(}Q`{_6<T(9!
 z`BgbsxV#(_RUFy41y#Umj93{Y7+DjU__;kCl{uLB1%)&@9L2ds(&SnEnE5oA+580f
 z5}8@J865SPS^SvzjD1Dfc!e~5dAWsHbe)}3@|;Cjef@OZbbN)R#aI$m+$0zs)tE&6
 zxcOClIl0AH66N@q8O1a?gt@)^^Zm0^lz8>zIQ_&q)L4ZaTpW{C*!^VrOng}xx!g>B
-zIr)WHKrV5S(35au;&9aD5$ARh)$<kRX5dRyWRYOxO^gX}aB&o6W$_bXFp}ex<Q7)-
-z72_9oOtTb`;nLM$;E;0mPfpMFG3Hc|^aYzN%ErsD<*VVxz^Cse>c_)i&f&<&#Zu?%
-tsO~JT;>*S;0QQ%sqlToLtP8h^oTwiUi!q0zvx|@(1B)bt?UwDD3jmyya&Z6v
+zIr)WHKrV5S(35au;&9aD5$ARh)$<kRX5dRyWRYOxO^gX}aLe}gH)CTJ%>}#Pl$C>l
+p-;o2&glI=pm-zVcil)gqvIq*9LR{tGD9g>GA_aD#gL6tkA^?X0ZCwBW
 
 literal 0
 HcmV?d00001
