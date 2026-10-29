@@ -986,7 +986,22 @@ static void PutGemAway(int gem)
 
   if (gem == PITS_GREEN)
   {
-    FinishGhost_PITS();
+    if (pits.script_gem[PITS_GREEN] >= 0)
+    {
+      // no ghost with a script: only put away, where the ground allows
+      if (!IsWalkable(pits.under[pits.px][pits.py]))
+	return;
+
+      pits.gems[PITS_GREEN]--;
+      pits.gem_in_use = PITS_NO_GEM;
+      pits.green_stage = 0;
+
+      RunScript(pits.script_gem[PITS_GREEN], FALSE, 0, 0);
+    }
+    else
+    {
+      FinishGhost_PITS();
+    }
 
     return;
   }
@@ -1003,7 +1018,6 @@ void FinishGhost_PITS(void)
 {
   int x = pits.px, y = pits.py;
   int over = pits.over[x][y];
-  boolean has_script = (pits.script_gem[PITS_GREEN] >= 0);
 
   if (!IsGhost())
     return;
@@ -1013,11 +1027,10 @@ void FinishGhost_PITS(void)
 
   if (!(over == PITS_O_NOTHING ||
 	(pits.over[pits.green_x][pits.green_y] == PITS_O_NOTHING &&
-	 (over >= PITS_O_BARREL_WATER || IsWalkable(over))) ||
-	has_script))
+	 (over >= PITS_O_BARREL_WATER || IsWalkable(over)))))
     return;
 
-  if (!has_script && over != PITS_O_NOTHING && !IsWalkable(over))
+  if (over != PITS_O_NOTHING && !IsWalkable(over))
   {
     pits.over[pits.green_x][pits.green_y] = over;
     pits.over[x][y] = PITS_O_NOTHING;
@@ -1043,9 +1056,6 @@ void FinishGhost_PITS(void)
   pits.gems[PITS_GREEN]--;
   pits.gem_in_use = PITS_NO_GEM;
   pits.green_stage = 0;
-
-  if (pits.script_gem[PITS_GREEN] >= 0)
-    RunScript(pits.script_gem[PITS_GREEN], FALSE, 0, 0);
 }
 
 void UseGem_PITS(int gem)
@@ -1070,6 +1080,15 @@ void UseGem_PITS(int gem)
   if (gem == PITS_GREEN)
   {
     pits.green_stage = 1;
+
+    // with a script, the gem is only in use
+    if (pits.script_gem[PITS_GREEN] >= 0)
+    {
+      RunScript(pits.script_gem[PITS_GREEN], TRUE, 0, 0);
+
+      return;
+    }
+
     pits.green_x = pits.px;
     pits.green_y = pits.py;
 
