@@ -2,9 +2,9 @@
 # package, with the patches from https://github.com/LaPingvino/rocksndiamonds-pits
 
 pkgname=rocksndiamonds-pits
-_commit=4e755f7fd83a528992480583dfe908d54b715969
+_commit=de8f44fe4365ed9e375f9a8a62736480d7be81da
 pkgver=4.4.2.4
-pkgrel=10
+pkgrel=11
 pkgdesc="Rocks'n'Diamonds, with an engine for The Puzzle Pits (its own levels, rules, pictures and sounds)"
 arch=(x86_64)
 url="https://github.com/LaPingvino/rocksndiamonds-pits"
@@ -23,8 +23,8 @@ source=(https://www.artsoft.org/RELEASES/linux/rocksndiamonds/rocksndiamonds-$pk
 sha256sums=('59ebdc8985923919a3f3cd7ceb2e9a073ca5b4755ffda0f908f4bf498bc61f99'
             'f92b604abeeda66aa28d06ae2d8b0ea89aedfd7686d3f8c73d8c0b05ad039439'
             '03b71c31646dc5cfbd2fe51767d8f2ae9925c843187479d0a7a8aa8dd5f9deea'
-            'c5d590e572f67f0e492b942ef2db329420a2ef20eb61dc68c7b52e4e61f158b6'
-            'f758a0c32dedc9c6fc0b2448ac33da245689a1c6f9cfb9a06d7d050dc23a6fb4')
+            '87a504b15a3988ff90072c21ec81309a019dc3d6556b0b6d8a4dc5a7694fcaa3'
+            '834e9b8407118acf2ad879d6d6d1793c180f479a68e880587eddd6620bcf2d1f')
 
 prepare() {
   cd "$srcdir"/rocksndiamonds-$pkgver
