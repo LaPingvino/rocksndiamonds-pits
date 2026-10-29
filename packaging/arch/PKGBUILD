@@ -4,7 +4,7 @@
 pkgname=rocksndiamonds-pits
 _commit=bd5e19ce077214c828e6cd8e0d30dcf859c7ea8e
 pkgver=4.4.2.4
-pkgrel=8
+pkgrel=9
 pkgdesc="Rocks'n'Diamonds, with an engine for The Puzzle Pits (its own levels, rules, pictures and sounds)"
 arch=(x86_64)
 url="https://github.com/LaPingvino/rocksndiamonds-pits"
@@ -28,10 +28,13 @@ sha256sums=('59ebdc8985923919a3f3cd7ceb2e9a073ca5b4755ffda0f908f4bf498bc61f99'
 
 prepare() {
   cd "$srcdir"/rocksndiamonds-$pkgver
-  # git apply: the level set's patch has binary files
+  # git apply: the level set's patch has binary files. GIT_CEILING_DIRECTORIES:
+  # when this is built inside a git checkout (e.g. this repository's own
+  # packaging/arch), git apply would otherwise skip the paths silently
   for p in "${_patches[@]}"; do
-    git apply "$srcdir/$p"
+    GIT_CEILING_DIRECTORIES="$srcdir" git apply --verbose "$srcdir/$p" > /dev/null
   done
+  test -d levels/The_Puzzle_Pits -a -d src/game_pits
 }
 
 build() {
