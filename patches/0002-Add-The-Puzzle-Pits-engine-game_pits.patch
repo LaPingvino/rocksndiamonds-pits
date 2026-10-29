@@ -1,4 +1,4 @@
-From 5d75e0ca8c751ab36491be660556393ca5ce847b Mon Sep 17 00:00:00 2001
+From 229e7c520b03c1a7d928f46ce25d1fbc744eb275 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
 Date: Wed, 28 Oct 2026 21:59:12 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
@@ -31,11 +31,11 @@ from its code.
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  src/game_pits/Makefile     |    3 +
- src/game_pits/pits_gfx.c   |  898 +++++++++++++++++++
- src/game_pits/pits_logic.c | 1735 ++++++++++++++++++++++++++++++++++++
+ src/game_pits/pits_gfx.c   |  898 ++++++++++++++++++
+ src/game_pits/pits_logic.c | 1754 ++++++++++++++++++++++++++++++++++++
  src/game_pits/pits_main.c  | 1206 +++++++++++++++++++++++++
- src/game_pits/pits_main.h  |  348 ++++++++
- 5 files changed, 4190 insertions(+)
+ src/game_pits/pits_main.h  |  348 +++++++
+ 5 files changed, 4209 insertions(+)
  create mode 100644 src/game_pits/pits_gfx.c
  create mode 100644 src/game_pits/pits_logic.c
  create mode 100644 src/game_pits/pits_main.c
@@ -961,10 +961,10 @@ index 0000000..d3157a0
 +}
 diff --git a/src/game_pits/pits_logic.c b/src/game_pits/pits_logic.c
 new file mode 100644
-index 0000000..53ff4bf
+index 0000000..33b5e70
 --- /dev/null
 +++ b/src/game_pits/pits_logic.c
-@@ -0,0 +1,1735 @@
+@@ -0,0 +1,1754 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -1953,7 +1953,22 @@ index 0000000..53ff4bf
 +
 +  if (gem == PITS_GREEN)
 +  {
-+    FinishGhost_PITS();
++    if (pits.script_gem[PITS_GREEN] >= 0)
++    {
++      // no ghost with a script: only put away, where the ground allows
++      if (!IsWalkable(pits.under[pits.px][pits.py]))
++	return;
++
++      pits.gems[PITS_GREEN]--;
++      pits.gem_in_use = PITS_NO_GEM;
++      pits.green_stage = 0;
++
++      RunScript(pits.script_gem[PITS_GREEN], FALSE, 0, 0);
++    }
++    else
++    {
++      FinishGhost_PITS();
++    }
 +
 +    return;
 +  }
@@ -1970,7 +1985,6 @@ index 0000000..53ff4bf
 +{
 +  int x = pits.px, y = pits.py;
 +  int over = pits.over[x][y];
-+  boolean has_script = (pits.script_gem[PITS_GREEN] >= 0);
 +
 +  if (!IsGhost())
 +    return;
@@ -1980,11 +1994,10 @@ index 0000000..53ff4bf
 +
 +  if (!(over == PITS_O_NOTHING ||
 +	(pits.over[pits.green_x][pits.green_y] == PITS_O_NOTHING &&
-+	 (over >= PITS_O_BARREL_WATER || IsWalkable(over))) ||
-+	has_script))
++	 (over >= PITS_O_BARREL_WATER || IsWalkable(over)))))
 +    return;
 +
-+  if (!has_script && over != PITS_O_NOTHING && !IsWalkable(over))
++  if (over != PITS_O_NOTHING && !IsWalkable(over))
 +  {
 +    pits.over[pits.green_x][pits.green_y] = over;
 +    pits.over[x][y] = PITS_O_NOTHING;
@@ -2010,9 +2023,6 @@ index 0000000..53ff4bf
 +  pits.gems[PITS_GREEN]--;
 +  pits.gem_in_use = PITS_NO_GEM;
 +  pits.green_stage = 0;
-+
-+  if (pits.script_gem[PITS_GREEN] >= 0)
-+    RunScript(pits.script_gem[PITS_GREEN], FALSE, 0, 0);
 +}
 +
 +void UseGem_PITS(int gem)
@@ -2037,6 +2047,15 @@ index 0000000..53ff4bf
 +  if (gem == PITS_GREEN)
 +  {
 +    pits.green_stage = 1;
++
++    // with a script, the gem is only in use
++    if (pits.script_gem[PITS_GREEN] >= 0)
++    {
++      RunScript(pits.script_gem[PITS_GREEN], TRUE, 0, 0);
++
++      return;
++    }
++
 +    pits.green_x = pits.px;
 +    pits.green_y = pits.py;
 +
