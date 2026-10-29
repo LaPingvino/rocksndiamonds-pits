@@ -1,4 +1,4 @@
-From 31927e47159f1983ea4f584b482bceea22591349 Mon Sep 17 00:00:00 2001
+From 02847a41e0fc8ed27ad2e95764a4ae291f94c6e5 Mon Sep 17 00:00:00 2001
 From: Joop Kiefte <ikojba@gmail.com>
 Date: Wed, 28 Oct 2026 21:59:12 +0000
 Subject: [PATCH 2/3] Add The Puzzle Pits engine (game_pits)
@@ -32,10 +32,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  src/game_pits/Makefile     |    3 +
  src/game_pits/pits_gfx.c   |  898 ++++++++++++++++++
- src/game_pits/pits_logic.c | 1780 ++++++++++++++++++++++++++++++++++++
+ src/game_pits/pits_logic.c | 1779 ++++++++++++++++++++++++++++++++++++
  src/game_pits/pits_main.c  | 1211 ++++++++++++++++++++++++
  src/game_pits/pits_main.h  |  350 +++++++
- 5 files changed, 4242 insertions(+)
+ 5 files changed, 4241 insertions(+)
  create mode 100644 src/game_pits/pits_gfx.c
  create mode 100644 src/game_pits/pits_logic.c
  create mode 100644 src/game_pits/pits_main.c
@@ -961,10 +961,10 @@ index 0000000..01d4949
 +}
 diff --git a/src/game_pits/pits_logic.c b/src/game_pits/pits_logic.c
 new file mode 100644
-index 0000000..d1db73a
+index 0000000..65447ff
 --- /dev/null
 +++ b/src/game_pits/pits_logic.c
-@@ -0,0 +1,1780 @@
+@@ -0,0 +1,1779 @@
 +// ============================================================================
 +// The Puzzle Pits engine for Rocks'n'Diamonds
 +// ----------------------------------------------------------------------------
@@ -1704,10 +1704,10 @@ index 0000000..d1db73a
 +      pits.over[x][y] = pits.over[bx][by];
 +      pits.over[bx][by] = PITS_O_NOTHING;
 +
-+      // not a way that glass knows: a pulled box doesn't slide
++      // not a way that glass knows: a pulled box doesn't slide; it is not marked
++      // as arrived, so an arrow or glass already here carries it on this turn
 +      pits.last_pushed[x][y] = 4 + dir;
 +      pits.last_pushed[bx][by] = PITS_NO_DIR;
-+      pits.arrived[x][y] = TRUE;
 +
 +      ApplyTileRules(bx, by);
 +      ApplyTileRules(x, y);
@@ -2027,7 +2027,6 @@ index 0000000..d1db73a
 +  {
 +    pits.over[pits.green_x][pits.green_y] = over;
 +    pits.over[x][y] = PITS_O_NOTHING;
-+    pits.arrived[pits.green_x][pits.green_y] = TRUE;
 +
 +    ApplyTileRules(x, y);
 +    ApplyTileRules(pits.green_x, pits.green_y);
